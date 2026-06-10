@@ -1,2 +1,2 @@
-export * from "./template.js";
-export type { Database } from "./database.types.js";
+export * from "./template";
+export type { Database } from "./database.types";
