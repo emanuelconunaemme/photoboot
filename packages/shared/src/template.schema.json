@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://photoboot.local/schemas/template.v1.json",
+  "title": "PhotobootTemplate",
+  "description": "Per-event configuration consumed by the iPad client. Source of truth for branding, capture modes, and delivery options.",
+  "type": "object",
+  "required": ["version", "event", "home_screen", "capture_modes", "delivery"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Bump when making breaking changes."
+    },
+    "event": {
+      "type": "object",
+      "required": ["name", "theme_color"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "logo_url": { "type": "string", "format": "uri" },
+        "theme_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "accent_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    },
+    "home_screen": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "cta_label": { "type": "string", "default": "Tap to start" },
+        "background_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "capture_modes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/CaptureMode" }
+    },
+    "overlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "frame_url": { "type": "string", "format": "uri" },
+        "text": { "type": "string" },
+        "text_position": { "type": "string", "enum": ["top", "bottom"], "default": "bottom" }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "required": ["sms_enabled", "email_enabled", "print_enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "sms_enabled": { "type": "boolean" },
+        "email_enabled": { "type": "boolean" },
+        "print_enabled": { "type": "boolean" },
+        "sms_message": { "type": "string", "description": "Body shown in outgoing SMS, supports {{album_url}} placeholder" },
+        "email_subject": { "type": "string" },
+        "email_body": { "type": "string", "description": "Plaintext body, supports {{album_url}} and {{photo_url}} placeholders" }
+      }
+    }
+  },
+  "$defs": {
+    "CaptureMode": {
+      "type": "object",
+      "required": ["id", "label", "shots", "countdown_seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "enum": ["single", "strip-4"] },
+        "label": { "type": "string" },
+        "shots": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "countdown_seconds": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "layout": {
+          "type": "string",
+          "enum": ["single", "vertical-strip", "grid-2x2"],
+          "default": "single"
+        }
+      }
+    }
+  }
+}

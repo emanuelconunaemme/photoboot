@@ -1,0 +1,2 @@
+-- Local dev seed. Runs after migrations on `supabase db reset`.
+-- Real data flows through the admin UI; this file stays mostly empty.

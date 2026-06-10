@@ -1,0 +1,26 @@
+{
+  "name": "photoboot",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Custom iPad photo booth app — admin SPA, Supabase backend, SwiftUI client",
+  "packageManager": "pnpm@10.5.1",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "supabase": "supabase",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "ipad:generate": "cd apps/client-ipad && xcodegen generate"
+  },
+  "devDependencies": {
+    "supabase": "^2.6.8",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}
