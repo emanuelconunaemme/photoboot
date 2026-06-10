@@ -1,6 +1,6 @@
 # photoboot
 
-Custom iPad photo booth app for reusable event photo capture, delivery, and printing.
+Custom iPad photo booth app for reusable event photo capture, delivery, and printing. This is a monorepo that includes the client and backend code.
 
 ## Layout
 
