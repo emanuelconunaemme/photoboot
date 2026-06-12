@@ -2,10 +2,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const AUTH_ROUTES = ["/login"];
+// Public routes — no auth required, no redirects either way. The `/p/[id]`
+// endpoint is the permanent shareable strip URL handed out via SMS/email.
+const PUBLIC_PREFIXES = ["/p/"];
 
 export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);
   const path = request.nextUrl.pathname;
+
+  const isPublic = PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
+  if (isPublic) return response;
 
   const isAuthRoute = AUTH_ROUTES.some((route) => path.startsWith(route));
 

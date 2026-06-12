@@ -54,6 +54,16 @@ migration:  ## Create a new migration: make migration name=add_thing
 	@[ "$(name)" ] || (echo "Usage: make migration name=add_something" && exit 1)
 	$(SUPABASE) migration new $(name)
 
+# ──────────────────── supabase (edge functions) ────────────────────
+
+.PHONY: functions-deploy
+functions-deploy:  ## Deploy all edge functions (--no-verify-jwt by default)
+	$(SUPABASE) functions deploy send-delivery --no-verify-jwt --project-ref $(PROJECT_REF)
+
+.PHONY: secrets-list
+secrets-list:  ## List edge function secrets (names only)
+	$(SUPABASE) secrets list --project-ref $(PROJECT_REF)
+
 # ──────────────────── supabase (local dev) ────────────────────
 
 .PHONY: start
