@@ -6,8 +6,12 @@
 -- because they conflicted with each other after a partial-apply.
 --
 -- WARNING: this drops all data in events/photos/strips/strip_photos/deliveries/
--- contacts/gphotos_credentials and all objects in the photos/composites/
--- templates storage buckets. `auth.users` is left untouched.
+-- contacts/gphotos_credentials. `auth.users` is left untouched.
+--
+-- Storage objects from previous tests are NOT cleared here — Supabase blocks
+-- direct deletes on storage.objects from SQL. Existing objects become
+-- orphaned (no row in events/photos/strips references them) and inaccessible
+-- via the app. Clean them up via the Supabase dashboard → Storage if you care.
 
 -- ────────────────────────────────────────────────────────────────────
 -- Drop everything we own
@@ -34,9 +38,11 @@ drop table if exists public.gphotos_credentials cascade;
 drop table if exists public.photos cascade;
 drop table if exists public.events cascade;
 
--- Storage objects + buckets we own
-delete from storage.objects where bucket_id in ('photos', 'composites', 'templates');
-delete from storage.buckets where id in ('photos', 'composites', 'templates');
+-- Storage objects + buckets: cannot delete from these tables via SQL on cloud
+-- (Supabase guards storage.objects and storage.buckets). Buckets get recreated
+-- with `on conflict do nothing` below so this migration is idempotent — leftover
+-- objects from a previous run become orphans (RLS hides them) but stay billable
+-- until cleaned via the dashboard.
 
 -- ────────────────────────────────────────────────────────────────────
 -- Rebuild — strip-centric schema
@@ -243,7 +249,8 @@ create policy "owner manages own gphotos credentials"
 insert into storage.buckets (id, name, public) values
   ('photos', 'photos', false),
   ('composites', 'composites', false),
-  ('templates', 'templates', true);
+  ('templates', 'templates', true)
+on conflict (id) do nothing;
 
 create policy "owner reads photos bucket"
   on storage.objects for select to authenticated
