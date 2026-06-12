@@ -7,7 +7,16 @@ import { slugify } from "@/lib/slug";
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
-export async function createEvent(formData: FormData) {
+export type EventFormState = {
+  error: string | null;
+};
+
+export const initialEventFormState: EventFormState = { error: null };
+
+export async function createEvent(
+  _prev: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const eventDate = String(formData.get("event_date") ?? "").trim();
@@ -16,11 +25,13 @@ export async function createEvent(formData: FormData) {
   const shotsRaw = String(formData.get("shots_per_strip") ?? "3").trim();
   const shotsPerStrip = Number.parseInt(shotsRaw, 10);
 
-  if (!name) redirectError("Name required");
-  if (!HEX_COLOR.test(primaryColor)) redirectError("Primary color must be #RRGGBB");
-  if (!HEX_COLOR.test(secondaryColor)) redirectError("Secondary color must be #RRGGBB");
+  if (!name) return { error: "Name required" };
+  if (!HEX_COLOR.test(primaryColor))
+    return { error: "Primary color must be #RRGGBB" };
+  if (!HEX_COLOR.test(secondaryColor))
+    return { error: "Secondary color must be #RRGGBB" };
   if (!Number.isFinite(shotsPerStrip) || shotsPerStrip < 1 || shotsPerStrip > 6) {
-    redirectError("Shots per strip must be between 1 and 6");
+    return { error: "Shots per strip must be between 1 and 6" };
   }
 
   const supabase = await createClient();
@@ -48,12 +59,7 @@ export async function createEvent(formData: FormData) {
     .select("slug")
     .single();
 
-  if (error) {
-    redirect(`/events/new?error=${encodeURIComponent(error.message)}`);
-  }
-  redirect(`/events/${data.slug}`);
-}
+  if (error) return { error: error.message };
 
-function redirectError(message: string): never {
-  redirect(`/events/new?error=${encodeURIComponent(message)}`);
+  redirect(`/events/${data.slug}`);
 }
