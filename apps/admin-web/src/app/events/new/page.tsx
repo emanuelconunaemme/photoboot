@@ -96,13 +96,13 @@ export default async function NewEventPage({
           width: 100%;
           border-radius: 0.5rem;
           padding: 0.5rem 0.75rem;
-          --tw-ring-color: rgb(212 212 216);
+          --tw-ring-color: #34D399;  /* emerald-400 */
           box-shadow: inset 0 0 0 1px var(--tw-ring-color);
           background: white;
           outline: none;
         }
         .text-input:focus {
-          --tw-ring-color: #E1306C;
+          --tw-ring-color: #059669;  /* emerald-600 */
           box-shadow: inset 0 0 0 2px var(--tw-ring-color);
         }
       `}</style>

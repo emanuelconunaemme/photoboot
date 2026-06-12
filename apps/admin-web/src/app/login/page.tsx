@@ -35,7 +35,7 @@ export default async function LoginPage({
             type="email"
             required
             autoComplete="email"
-            className="mt-1 block w-full rounded-md border-0 px-3 py-2 ring-1 ring-zinc-300 focus:ring-2 focus:ring-zinc-900"
+            className="mt-1 block w-full rounded-md border-0 px-3 py-2 ring-1 ring-emerald-400 focus:ring-2 focus:ring-emerald-600"
           />
         </label>
 
@@ -46,7 +46,7 @@ export default async function LoginPage({
             type="password"
             required
             autoComplete="current-password"
-            className="mt-1 block w-full rounded-md border-0 px-3 py-2 ring-1 ring-zinc-300 focus:ring-2 focus:ring-zinc-900"
+            className="mt-1 block w-full rounded-md border-0 px-3 py-2 ring-1 ring-emerald-400 focus:ring-2 focus:ring-emerald-600"
           />
         </label>
 
