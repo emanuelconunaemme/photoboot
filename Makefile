@@ -33,17 +33,13 @@ link:  ## Link this repo to the cloud project ($(PROJECT_REF))
 	$(SUPABASE) link --project-ref $(PROJECT_REF)
 
 .PHONY: push
-push:  ## Push migrations + config.toml to cloud (run after each migration)
-	$(SUPABASE) db push
-	$(SUPABASE) config push
-
-.PHONY: push-migrations
-push-migrations:  ## Push only migrations (skip config)
+push:  ## Push migrations to cloud (run after each new migration)
 	$(SUPABASE) db push
 
-.PHONY: push-config
-push-config:  ## Push only config.toml (skip migrations)
-	$(SUPABASE) config push
+# NOTE: we deliberately do NOT auto-push config.toml. The CLI's config sync
+# can silently disable auth providers (we lost email login once that way).
+# Manage auth/storage/realtime settings in the Supabase dashboard. config.toml
+# is kept as documentation + local-stack config only.
 
 .PHONY: pull
 pull:  ## Pull the cloud schema into a new local migration
