@@ -1,12 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
-import { createEvent, initialEventFormState } from "./actions";
+import { createEvent } from "./actions";
+
+type EventFormState = { error: string | null };
+const initialState: EventFormState = { error: null };
 
 export function NewEventForm() {
-  const [state, formAction, pending] = useActionState(
+  const [state, formAction, pending] = useActionState<EventFormState, FormData>(
     createEvent,
-    initialEventFormState,
+    initialState,
   );
 
   return (

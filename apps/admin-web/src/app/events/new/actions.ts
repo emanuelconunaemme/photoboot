@@ -5,18 +5,15 @@ import { DEFAULT_TEMPLATE } from "@photoboot/shared";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slug";
 
+// NOTE: only async functions can be exported from a "use server" file in
+// Next.js 16 — constants and types live in NewEventForm.tsx alongside the hook.
+
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
-export type EventFormState = {
-  error: string | null;
-};
-
-export const initialEventFormState: EventFormState = { error: null };
-
 export async function createEvent(
-  _prev: EventFormState,
+  _prev: { error: string | null },
   formData: FormData,
-): Promise<EventFormState> {
+): Promise<{ error: string | null }> {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const eventDate = String(formData.get("event_date") ?? "").trim();
