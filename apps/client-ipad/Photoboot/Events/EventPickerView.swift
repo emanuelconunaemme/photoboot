@@ -24,18 +24,29 @@ struct EventPickerView: View {
         if store.isLoading && store.events.isEmpty {
             ProgressView().controlSize(.large)
         } else if let error = store.loadError {
-            ContentUnavailableView(
-                "Couldn't load events",
-                systemImage: "exclamationmark.triangle",
-                description: Text(error)
-            )
+            ContentUnavailableView {
+                Label("Couldn't load events", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(error)
+            } actions: {
+                Button(action: { Task { await store.load() } }) {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Brand.pink)
+            }
         } else if store.events.isEmpty {
-            ContentUnavailableView(
-                "No events yet",
-                systemImage: "calendar.badge.plus",
-                description: Text("Create one in the admin web app, then pull to refresh.")
-            )
-            .refreshable { await store.load() }
+            ContentUnavailableView {
+                Label("No events yet", systemImage: "calendar.badge.plus")
+            } description: {
+                Text("Create one in the admin web app, then refresh.")
+            } actions: {
+                Button(action: { Task { await store.load() } }) {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Brand.pink)
+            }
         } else {
             List(store.events) { event in
                 Button {
