@@ -82,16 +82,15 @@ export function NewEventForm() {
       <style>{`
         .text-input {
           width: 100%;
+          border: none;
           border-radius: 0.5rem;
           padding: 0.5rem 0.75rem;
-          --tw-ring-color: #34D399;
-          box-shadow: inset 0 0 0 1px var(--tw-ring-color);
+          box-shadow: inset 0 0 0 1px #34D399;  /* emerald-400 */
           background: white;
           outline: none;
         }
         .text-input:focus {
-          --tw-ring-color: #059669;
-          box-shadow: inset 0 0 0 2px var(--tw-ring-color);
+          box-shadow: inset 0 0 0 2px #059669;  /* emerald-600 */
         }
       `}</style>
     </form>
@@ -136,7 +135,7 @@ function ColorInput({
         type="color"
         name={name}
         defaultValue={defaultValue}
-        className="h-10 w-12 cursor-pointer rounded-md border-0 bg-transparent p-0 ring-1 ring-zinc-300"
+        className="h-10 w-12 cursor-pointer rounded-md border-0 bg-transparent p-0 ring-1 ring-emerald-400"
       />
       <code className="font-mono text-sm text-zinc-600">{defaultValue}</code>
     </div>
