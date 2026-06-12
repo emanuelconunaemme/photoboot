@@ -14,8 +14,10 @@ export default async function LoginPage({
         className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-sm ring-1 ring-zinc-200"
       >
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-sm text-zinc-500">Photoboot admin</p>
+          <h1 className="ig-gradient-text text-3xl font-bold tracking-tight">
+            Photoboot
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">Sign in to continue</p>
         </div>
 
         {error ? (
@@ -50,7 +52,7 @@ export default async function LoginPage({
 
         <button
           type="submit"
-          className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          className="ig-gradient w-full rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
         >
           Sign in
         </button>

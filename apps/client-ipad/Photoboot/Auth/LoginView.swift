@@ -15,10 +15,11 @@ struct LoginView: View {
             VStack(spacing: 20) {
                 Image(systemName: "camera.aperture")
                     .font(.system(size: 72))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(Brand.gradient)
 
                 Text("Photoboot")
                     .font(.largeTitle.weight(.bold))
+                    .foregroundStyle(Brand.gradient)
 
                 Text("Sign in to continue")
                     .font(.title3)
@@ -57,7 +58,7 @@ struct LoginView: View {
                     }
                     .frame(maxWidth: 420)
                     .padding(.vertical, 14)
-                    .background(Color.accentColor, in: .rect(cornerRadius: 12))
+                    .background(Brand.gradient, in: .rect(cornerRadius: 12))
                     .foregroundStyle(.white)
                 }
                 .disabled(isSubmitting || email.isEmpty || password.isEmpty)

@@ -1,32 +1,22 @@
 import SwiftUI
 
 struct EventPickerView: View {
+    let onSelect: (Event) -> Void
+
     @Environment(AuthStore.self) private var auth
     @State private var store = EventsStore()
-    @State private var selectedEvent: Event?
 
     var body: some View {
-        NavigationStack {
-            content
-                .navigationTitle("Choose event")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Sign out") {
-                            Task { await auth.signOut() }
-                        }
+        content
+            .navigationTitle("Choose event")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Sign out") {
+                        Task { await auth.signOut() }
                     }
                 }
-                .task {
-                    await store.load()
-                    if selectedEvent == nil, let last = store.lastSelectedEvent {
-                        selectedEvent = last
-                    }
-                }
-                .navigationDestination(item: $selectedEvent) { event in
-                    CaptureFlowView(event: event)
-                        .onAppear { store.rememberSelected(event) }
-                }
-        }
+            }
+            .task { await store.load() }
     }
 
     @ViewBuilder
@@ -49,7 +39,8 @@ struct EventPickerView: View {
         } else {
             List(store.events) { event in
                 Button {
-                    selectedEvent = event
+                    store.rememberSelected(event)
+                    onSelect(event)
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {

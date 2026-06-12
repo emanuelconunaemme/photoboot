@@ -11,7 +11,10 @@ export async function Header() {
 
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3">
-      <Link href="/" className="text-sm font-semibold tracking-tight">
+      <Link
+        href="/"
+        className="ig-gradient-text text-lg font-bold tracking-tight"
+      >
         Photoboot
       </Link>
       <div className="flex items-center gap-3">

@@ -2,10 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
-import type { EventRow, PhotoRow } from "@/lib/database";
+import type { EventRow, PhotoRow, StripRow } from "@/lib/database";
 import { PhotoGrid, type PhotoWithUrl } from "./PhotoGrid";
+import { StripGrid, type StripWithUrl } from "./StripGrid";
 
 const SIGNED_URL_TTL_SECONDS = 3600;
+
+const STATUS_CLASSES: Record<string, string> = {
+  draft: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  live: "ig-gradient text-white ring-transparent",
+  archived: "bg-zinc-200 text-zinc-500 ring-zinc-300",
+};
 
 export default async function EventPage({
   params,
@@ -17,12 +24,61 @@ export default async function EventPage({
 
   const { data: event } = await supabase
     .from("events")
-    .select("id, name, slug, status, gphotos_share_url")
+    .select(
+      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, shots_per_strip",
+    )
     .eq("slug", slug)
-    .maybeSingle<Pick<EventRow, "id" | "name" | "slug" | "status" | "gphotos_share_url">>();
+    .maybeSingle<
+      Pick<
+        EventRow,
+        | "id"
+        | "name"
+        | "slug"
+        | "status"
+        | "gphotos_share_url"
+        | "description"
+        | "event_date"
+        | "primary_color"
+        | "secondary_color"
+        | "shots_per_strip"
+      >
+    >();
 
   if (!event) notFound();
 
+  // Strips (the deliverable unit)
+  const { data: strips } = await supabase
+    .from("strips")
+    .select("id, event_id, composite_path, created_at")
+    .eq("event_id", event.id)
+    .order("created_at", { ascending: false })
+    .returns<Pick<StripRow, "id" | "event_id" | "composite_path" | "created_at">[]>();
+
+  const readyStrips = (strips ?? []).filter(
+    (s): s is typeof s & { composite_path: string } => Boolean(s.composite_path),
+  );
+
+  const stripSigned = readyStrips.length
+    ? await supabase.storage
+        .from("composites")
+        .createSignedUrls(
+          readyStrips.map((s) => s.composite_path),
+          SIGNED_URL_TTL_SECONDS,
+        )
+    : { data: [], error: null };
+
+  const stripUrlByPath = new Map(
+    (stripSigned.data ?? []).map((entry) => [entry.path ?? "", entry.signedUrl]),
+  );
+
+  const initialStrips: StripWithUrl[] = readyStrips.map((s) => ({
+    id: s.id,
+    composite_path: s.composite_path,
+    created_at: s.created_at,
+    signed_url: stripUrlByPath.get(s.composite_path) ?? null,
+  }));
+
+  // Raw photos (provenance / archive)
   const { data: photos } = await supabase
     .from("photos")
     .select("id, event_id, status, capture_mode, storage_path, taken_at, ready_at")
@@ -35,7 +91,7 @@ export default async function EventPage({
       p.status === "ready" && Boolean(p.storage_path),
   );
 
-  const signed = readyPhotos.length
+  const photoSigned = readyPhotos.length
     ? await supabase.storage
         .from("photos")
         .createSignedUrls(
@@ -44,42 +100,123 @@ export default async function EventPage({
         )
     : { data: [], error: null };
 
-  const urlByPath = new Map(
-    (signed.data ?? []).map((entry) => [entry.path ?? "", entry.signedUrl]),
+  const photoUrlByPath = new Map(
+    (photoSigned.data ?? []).map((entry) => [entry.path ?? "", entry.signedUrl]),
   );
 
-  const initial: PhotoWithUrl[] = readyPhotos.map((p) => ({
+  const initialPhotos: PhotoWithUrl[] = readyPhotos.map((p) => ({
     id: p.id,
     storage_path: p.storage_path,
     taken_at: p.taken_at,
     capture_mode: p.capture_mode,
-    signed_url: urlByPath.get(p.storage_path) ?? null,
+    signed_url: photoUrlByPath.get(p.storage_path) ?? null,
   }));
+
+  const statusClass = STATUS_CLASSES[event.status] ?? STATUS_CLASSES.draft;
+  const formattedDate = event.event_date
+    ? new Date(event.event_date + "T00:00:00Z").toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      })
+    : null;
 
   return (
     <>
       <Header />
       <main className="mx-auto w-full max-w-6xl px-6 py-10">
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900">
+        <Link
+          href="/"
+          className="text-ig-pink hover:text-ig-purple text-sm font-medium transition"
+        >
           ← All events
         </Link>
 
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="ig-gradient-text text-4xl font-bold tracking-tight">
               {event.name}
             </h1>
-            <p className="text-sm text-zinc-500">
-              {event.slug} · {event.status}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+              <span className="font-mono">{event.slug}</span>
+              <span>·</span>
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${statusClass}`}
+              >
+                {event.status}
+              </span>
+              <span>·</span>
+              <span>
+                {event.shots_per_strip}{" "}
+                {event.shots_per_strip === 1 ? "shot" : "shots"}/strip
+              </span>
+              {formattedDate ? (
+                <>
+                  <span>·</span>
+                  <span>{formattedDate}</span>
+                </>
+              ) : null}
+            </div>
+            {event.description ? (
+              <p className="mt-3 max-w-xl text-sm text-zinc-600">
+                {event.description}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ColorSwatch label="Primary" hex={event.primary_color} />
+            <ColorSwatch label="Secondary" hex={event.secondary_color} />
           </div>
         </div>
 
-        <section className="mt-8">
-          <h2 className="text-sm font-medium text-zinc-700">Photos</h2>
-          <PhotoGrid eventId={event.id} initial={initial} />
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xl font-semibold tracking-tight">Strips</h2>
+            <span className="text-xs text-zinc-500">
+              {initialStrips.length}{" "}
+              {initialStrips.length === 1 ? "strip" : "strips"}
+            </span>
+          </div>
+          <StripGrid eventId={event.id} initial={initialStrips} />
+        </section>
+
+        <section className="mt-12">
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-baseline justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 group-open:text-zinc-700">
+                Raw photos ({initialPhotos.length})
+              </h2>
+              <span className="text-xs text-zinc-400 group-open:hidden">
+                Show
+              </span>
+              <span className="hidden text-xs text-zinc-400 group-open:inline">
+                Hide
+              </span>
+            </summary>
+            <div className="mt-3">
+              <PhotoGrid eventId={event.id} initial={initialPhotos} />
+            </div>
+          </details>
         </section>
       </main>
     </>
+  );
+}
+
+function ColorSwatch({ label, hex }: { label: string; hex: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-full bg-white px-2.5 py-1 ring-1 ring-zinc-200">
+      <span
+        className="h-4 w-4 rounded-full ring-1 ring-black/10"
+        style={{ backgroundColor: hex }}
+      />
+      <span className="text-xs text-zinc-600">
+        <span className="text-zinc-400">{label}</span>{" "}
+        <span className="font-mono">{hex}</span>
+      </span>
+    </div>
   );
 }

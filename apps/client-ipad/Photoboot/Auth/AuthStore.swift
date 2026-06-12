@@ -12,16 +12,14 @@ final class AuthStore {
     }
 
     private(set) var state: State = .loading
-    private var observerTask: Task<Void, Never>?
 
     init() {
-        observerTask = Task { [weak self] in
+        // AuthStore is held by @State at the App root and lives for the app's
+        // lifetime — observe()'s for-await loop retains self, so there's no
+        // task handle to track for cancellation.
+        Task { [weak self] in
             await self?.observe()
         }
-    }
-
-    deinit {
-        observerTask?.cancel()
     }
 
     func signIn(email: String, password: String) async throws {

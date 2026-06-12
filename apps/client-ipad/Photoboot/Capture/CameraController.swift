@@ -6,8 +6,8 @@ import os
 final class CameraController: NSObject {
     let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
-    private let sessionQueue = DispatchQueue(label: "xyz.saga.photoboot.camera")
-    private let log = Logger(subsystem: "xyz.saga.photoboot", category: "camera")
+    private let sessionQueue = DispatchQueue(label: "com.mazzillie.photoboot.camera")
+    private let log = Logger(subsystem: "com.mazzillie.photoboot", category: "camera")
 
     private var captureContinuation: CheckedContinuation<Data, Error>?
 
@@ -51,7 +51,12 @@ final class CameraController: NSObject {
     }
 
     func capture() async throws -> Data {
-        try await withCheckedThrowingContinuation { cont in
+        #if targetEnvironment(simulator)
+        // Simulator has no camera. Synthesize a recognizable image so the
+        // upload + delivery flow can still be exercised end-to-end.
+        return try synthesizeSimulatorImage()
+        #else
+        return try await withCheckedThrowingContinuation { cont in
             self.captureContinuation = cont
             sessionQueue.async { [self] in
                 let settings = AVCapturePhotoSettings()
@@ -59,7 +64,44 @@ final class CameraController: NSObject {
                 photoOutput.capturePhoto(with: settings, delegate: self)
             }
         }
+        #endif
     }
+
+    #if targetEnvironment(simulator)
+    private func synthesizeSimulatorImage() throws -> Data {
+        let size = CGSize(width: 1080, height: 1440)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in
+            let colors = [UIColor.systemPink.cgColor, UIColor.systemOrange.cgColor]
+            let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors as CFArray,
+                locations: [0, 1]
+            )!
+            ctx.cgContext.drawLinearGradient(
+                gradient,
+                start: .zero,
+                end: CGPoint(x: 0, y: size.height),
+                options: []
+            )
+
+            let label = "SIMULATOR\n\(ISO8601DateFormatter().string(from: Date()))"
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 56, weight: .bold),
+                .foregroundColor: UIColor.white,
+                .paragraphStyle: paragraph,
+            ]
+            let textRect = CGRect(x: 40, y: size.height / 2 - 80, width: size.width - 80, height: 200)
+            (label as NSString).draw(in: textRect, withAttributes: attrs)
+        }
+        guard let data = image.jpegData(compressionQuality: 0.9) else {
+            throw CameraError.noData
+        }
+        return data
+    }
+    #endif
 
     // MARK: - Private
 
