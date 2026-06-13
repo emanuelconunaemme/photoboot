@@ -29,6 +29,7 @@ final class CameraController: NSObject {
 
     func start() async throws {
         try await ensurePermission()
+        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             sessionQueue.async { [self] in
                 if !session.isRunning {
@@ -56,9 +57,22 @@ final class CameraController: NSObject {
         // upload + delivery flow can still be exercised end-to-end.
         return try synthesizeSimulatorImage()
         #else
+        // Snapshot device orientation BEFORE leaving the main actor — UIDevice
+        // is main-actor-isolated. Then apply the matching rotation angle to
+        // the photo output's connection so captures share orientation with
+        // what's on screen.
+        let rotationAngle = CameraOrientation.videoRotationAngle(
+            for: UIDevice.current.orientation
+        )
         return try await withCheckedThrowingContinuation { cont in
             self.captureContinuation = cont
             sessionQueue.async { [self] in
+                if let angle = rotationAngle {
+                    for connection in photoOutput.connections
+                    where connection.isVideoRotationAngleSupported(angle) {
+                        connection.videoRotationAngle = angle
+                    }
+                }
                 let settings = AVCapturePhotoSettings()
                 settings.flashMode = .off
                 photoOutput.capturePhoto(with: settings, delegate: self)
