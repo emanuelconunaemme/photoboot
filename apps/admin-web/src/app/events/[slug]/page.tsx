@@ -149,7 +149,7 @@ export default async function EventPage({
           ← All events
         </Link>
 
-        <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+        <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="ig-gradient-text text-4xl font-bold tracking-tight">
               {event.name}
@@ -192,9 +192,17 @@ export default async function EventPage({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
-            <ColorSwatch label="Primary" hex={event.primary_color} />
-            <ColorSwatch label="Secondary" hex={event.secondary_color} />
+          <div className="flex flex-col items-end gap-3">
+            <Link
+              href={`/events/${event.slug}/edit`}
+              className="ig-gradient inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              Edit event
+            </Link>
+            <div className="flex items-center gap-2">
+              <ColorSwatch label="Primary" hex={event.primary_color} />
+              <ColorSwatch label="Secondary" hex={event.secondary_color} />
+            </div>
           </div>
         </div>
 
@@ -203,12 +211,12 @@ export default async function EventPage({
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
               Backgrounds
             </h2>
-            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="mt-3 flex flex-wrap items-end gap-6">
               {bg2x6Url ? (
-                <BackgroundPreview label="2×6" url={bg2x6Url} aspect="aspect-[1/3]" />
+                <BackgroundPreview label="2×6" url={bg2x6Url} aspectRatio="1/3" />
               ) : null}
               {bg4x6Url ? (
-                <BackgroundPreview label="4×6" url={bg4x6Url} aspect="aspect-[3/2]" />
+                <BackgroundPreview label="4×6" url={bg4x6Url} aspectRatio="3/2" />
               ) : null}
             </div>
           </section>
@@ -266,18 +274,21 @@ function ColorSwatch({ label, hex }: { label: string; hex: string }) {
 function BackgroundPreview({
   label,
   url,
-  aspect,
+  aspectRatio,
 }: {
   label: string;
   url: string;
-  aspect: string;
+  aspectRatio: string; // "1/3" or "3/2" — inline style so we can mix orientations
 }) {
   return (
-    <div className="rounded-2xl bg-white p-3 ring-1 ring-zinc-200">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+    <div className="flex flex-col gap-1.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {label}
       </p>
-      <div className={`${aspect} overflow-hidden rounded-lg bg-zinc-100`}>
+      <div
+        className="h-40 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200"
+        style={{ aspectRatio }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt={`${label} background`} className="h-full w-full object-cover" />
       </div>
