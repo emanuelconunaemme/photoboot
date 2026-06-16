@@ -41,6 +41,26 @@ push:  ## Push migrations to cloud (run after each new migration)
 # Manage auth/storage/realtime settings in the Supabase dashboard. config.toml
 # is kept as documentation + local-stack config only.
 
+# ──────────────────── DESTRUCTIVE — temporary helpers ────────────────────
+# Remove these once we're past the early data-churn phase.
+
+NUKE_TABLES := public.deliveries, public.strip_photos, public.strips, public.photos, public.contacts, public.gphotos_credentials, public.events
+
+.PHONY: nuke
+nuke:  ## DESTRUCTIVE: truncate all app data on cloud (prompts for DB password)
+	@echo "⚠️  TRUNCATE cascade on: $(NUKE_TABLES)"
+	@echo "    auth.users is preserved. Storage objects are NOT cleared (clean via dashboard if needed)."
+	@echo "    DB password is in Supabase dashboard → Settings → Database (reset if forgotten)."
+	@read -r -s -p "DB password: " pwd; echo; \
+	PGPASSWORD="$$pwd" psql "postgresql://postgres@db.$(PROJECT_REF).supabase.co:5432/postgres?sslmode=require" \
+	  -c "truncate table $(NUKE_TABLES) restart identity cascade;"
+
+.PHONY: nuke-storage
+nuke-storage:  ## DESTRUCTIVE: empty photos/composites/templates storage buckets
+	-$(SUPABASE) storage rm -r ss3://photos --project-ref $(PROJECT_REF)
+	-$(SUPABASE) storage rm -r ss3://composites --project-ref $(PROJECT_REF)
+	-$(SUPABASE) storage rm -r ss3://templates --project-ref $(PROJECT_REF)
+
 .PHONY: pull
 pull:  ## Pull the cloud schema into a new local migration
 	$(SUPABASE) db pull
