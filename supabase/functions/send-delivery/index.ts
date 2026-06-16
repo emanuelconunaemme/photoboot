@@ -19,7 +19,8 @@ interface DeliveryRow {
 
 interface StripRow {
   id: string;
-  composite_path: string | null;
+  composite_2x6_path: string | null;
+  composite_4x6_path: string | null;
   event_id: string;
 }
 
@@ -63,12 +64,13 @@ Deno.serve(async (req) => {
 
     const { data: strip, error: stripErr } = await supabase
       .from("strips")
-      .select("id, composite_path, event_id")
+      .select("id, composite_2x6_path, composite_4x6_path, event_id")
       .eq("id", (delivery as DeliveryRow).strip_id)
       .maybeSingle();
     if (stripErr) return json({ error: stripErr.message }, 500);
     if (!strip) return json({ error: "Strip not found" }, 404);
-    if (!(strip as StripRow).composite_path) {
+    const s = strip as StripRow;
+    if (!s.composite_2x6_path && !s.composite_4x6_path) {
       return json({ ok: false, reason: "strip not ready" }, 202);
     }
 
