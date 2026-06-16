@@ -42,32 +42,72 @@ export function NewEventForm() {
         />
       </Field>
 
-      <Field label="Event date" hint="Printed at the bottom of each strip.">
+      <Field label="Event date" hint="Used as the default subtitle if you leave it blank below.">
         <input name="event_date" type="date" className="text-input" />
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Primary color">
+        <Field label="Primary color" hint="Strip title color">
           <ColorInput name="primary_color" defaultValue="#E1306C" />
         </Field>
-        <Field label="Secondary color">
+        <Field label="Secondary color" hint="Strip subtitle color">
           <ColorInput name="secondary_color" defaultValue="#833AB4" />
         </Field>
       </div>
 
+      <Field label="Strip title" hint="Shown on every strip. Often the event name in shorter form.">
+        <input
+          name="strip_title"
+          type="text"
+          placeholder="Sam & Alex"
+          className="text-input"
+        />
+      </Field>
+
+      <Field label="Strip subtitle" hint="A date, a tagline, anything. Leave blank to skip.">
+        <input
+          name="strip_subtitle"
+          type="text"
+          placeholder="July 4, 2026"
+          className="text-input"
+        />
+      </Field>
+
+      <hr className="border-zinc-200" />
+
+      <div>
+        <h2 className="text-sm font-semibold text-zinc-700">Backgrounds</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Two images, one per print format. Photos overlay these. Both
+          required.
+        </p>
+      </div>
+
       <Field
-        label="Shots per strip"
-        hint="How many photos to capture for one strip (1–6, typically 2 or 3)."
+        label="2×6 strip background"
         required
+        hint="Portrait, fills the strip. Aim ~600×1800 (or higher)."
       >
         <input
-          name="shots_per_strip"
-          type="number"
-          min={1}
-          max={6}
-          defaultValue={3}
+          name="background_2x6"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
           required
-          className="text-input"
+          className="file-input"
+        />
+      </Field>
+
+      <Field
+        label="4×6 print background"
+        required
+        hint="Landscape, fills the print. Photos sit on the left half. Aim ~1800×1200."
+      >
+        <input
+          name="background_4x6"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          required
+          className="file-input"
         />
       </Field>
 
@@ -85,12 +125,29 @@ export function NewEventForm() {
           border: none;
           border-radius: 0.5rem;
           padding: 0.5rem 0.75rem;
-          box-shadow: inset 0 0 0 1px #34D399;  /* emerald-400 */
+          box-shadow: inset 0 0 0 1px #34D399;
           background: white;
           outline: none;
         }
         .text-input:focus {
-          box-shadow: inset 0 0 0 2px #059669;  /* emerald-600 */
+          box-shadow: inset 0 0 0 2px #059669;
+        }
+        .file-input {
+          width: 100%;
+          padding: 0.5rem 0;
+          font-size: 0.875rem;
+        }
+        .file-input::file-selector-button {
+          padding: 0.4rem 0.75rem;
+          margin-right: 0.75rem;
+          border-radius: 0.375rem;
+          border: 1px solid #d4d4d8;
+          background: #fafafa;
+          cursor: pointer;
+          font-weight: 500;
+        }
+        .file-input::file-selector-button:hover {
+          background: #f4f4f5;
         }
       `}</style>
     </form>

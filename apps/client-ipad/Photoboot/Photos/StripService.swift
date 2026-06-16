@@ -17,21 +17,20 @@ final class StripService {
             .order("created_at", ascending: false)
             .execute()
             .value
-        return strips.filter { $0.compositePath != nil }
+        return strips.filter { $0.hasAnyComposite }
     }
 
-    func signedURL(for strip: Strip, expiresIn seconds: Int = 3600) async throws -> URL {
-        guard let path = strip.compositePath else {
+    func signedURL(for strip: Strip, format: StripFormat, expiresIn seconds: Int = 3600) async throws -> URL {
+        guard let path = strip.compositePath(for: format) else {
             throw StripServiceError.missingCompositePath
         }
-        let url = try await SupabaseService.shared.client.storage
+        return try await SupabaseService.shared.client.storage
             .from("composites")
             .createSignedURL(path: path, expiresIn: seconds)
-        return url
     }
 
-    func downloadImageData(for strip: Strip) async throws -> Data {
-        let url = try await signedURL(for: strip)
+    func downloadImageData(for strip: Strip, format: StripFormat) async throws -> Data {
+        let url = try await signedURL(for: strip, format: format)
         let (data, response) = try await URLSession.shared.data(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw StripServiceError.downloadFailed(http.statusCode)
@@ -41,8 +40,11 @@ final class StripService {
 
     func delete(_ strip: Strip) async throws {
         let client = SupabaseService.shared.client
-        if let path = strip.compositePath {
-            _ = try? await client.storage.from("composites").remove(paths: [path])
+        var paths: [String] = []
+        if let p = strip.composite2x6Path { paths.append(p) }
+        if let p = strip.composite4x6Path { paths.append(p) }
+        if !paths.isEmpty {
+            _ = try? await client.storage.from("composites").remove(paths: paths)
         }
         try await client.from("strips").delete().eq("id", value: strip.id).execute()
         log.info("deleted strip \(strip.id.uuidString)")
@@ -80,7 +82,7 @@ final class StripService {
         case downloadFailed(Int)
         var errorDescription: String? {
             switch self {
-            case .missingCompositePath: "Strip has no composite image."
+            case .missingCompositePath: "Strip has no composite for that format."
             case .downloadFailed(let code): "Image download failed (HTTP \(code))."
             }
         }

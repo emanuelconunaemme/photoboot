@@ -6,9 +6,10 @@ interface Props {
   imageUrl: string;
   filename: string;
   title: string;
+  size?: "small" | "default";
 }
 
-export function StripActions({ imageUrl, filename, title }: Props) {
+export function StripActions({ imageUrl, filename, title, size = "default" }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<"download" | "share" | null>(null);
 
@@ -41,8 +42,6 @@ export function StripActions({ imageUrl, filename, title }: Props) {
   async function handleShare() {
     setBusy("share");
     try {
-      // Prefer file share — recipient gets an actual image, not a link.
-      // This is what surfaces Instagram, Messages, Mail, etc. on iOS / Android.
       try {
         const res = await fetch(imageUrl);
         const blob = await res.blob();
@@ -53,44 +52,45 @@ export function StripActions({ imageUrl, filename, title }: Props) {
           return;
         }
       } catch {
-        // file share failed/cancelled — fall through
+        // file share failed; fall through
       }
 
-      // No file share support — share the page URL instead.
       if (navigator.share) {
         await navigator.share({ title, url: window.location.href });
         flashStatus("Shared!");
         return;
       }
 
-      // Desktop fallback: copy link to clipboard.
       await navigator.clipboard.writeText(window.location.href);
       flashStatus("Link copied 📋");
     } catch {
-      // user cancelled or clipboard failed
+      // cancelled
     } finally {
       setBusy(null);
     }
   }
 
+  const padding = size === "small" ? "px-4 py-2" : "px-6 py-3";
+  const textSize = size === "small" ? "text-xs" : "text-sm";
+
   return (
-    <div className="mt-6 flex flex-col items-center gap-3">
-      <div className="flex flex-wrap justify-center gap-3">
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
           onClick={handleDownload}
           disabled={busy !== null}
-          className="ig-gradient flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-60"
+          className={`ig-gradient flex items-center gap-2 rounded-full font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-60 ${padding} ${textSize}`}
         >
           <DownloadIcon className="h-4 w-4" />
-          {busy === "download" ? "Downloading…" : "Download"}
+          {busy === "download" ? "…" : "Download"}
         </button>
         <button
           onClick={handleShare}
           disabled={busy !== null}
-          className="flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-md ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60"
+          className={`flex items-center gap-2 rounded-full bg-white font-semibold text-zinc-900 shadow-md ring-1 ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-60 ${padding} ${textSize}`}
         >
           <ShareIcon className="h-4 w-4" />
-          {busy === "share" ? "Sharing…" : "Share"}
+          {busy === "share" ? "…" : "Share"}
         </button>
       </div>
       {status ? (

@@ -14,6 +14,25 @@ enum Brand {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+    /// Gradient built from an event's primary + secondary colors.
+    /// Used on the capture button ring so the button that "starts the
+    /// countdown" carries the event's identity. Everything else stays IG.
+    static func eventGradient(for event: Event) -> LinearGradient {
+        LinearGradient(
+            colors: [Color(hex: event.primaryColor), Color(hex: event.secondaryColor)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    static func eventPrimary(for event: Event) -> Color {
+        Color(hex: event.primaryColor)
+    }
+
+    static func eventSecondary(for event: Event) -> Color {
+        Color(hex: event.secondaryColor)
+    }
 }
 
 extension Color {

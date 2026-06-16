@@ -1,6 +1,4 @@
 // Hand-written types mirroring the latest supabase/migrations.
-// Replace with codegen output (`pnpm supabase gen types typescript --local`)
-// once the local stack is reliably running. Re-export from @photoboot/shared.
 
 import type { PhotobootTemplate } from "@photoboot/shared";
 
@@ -14,11 +12,15 @@ export interface EventRow {
   status: EventStatus;
   template: PhotobootTemplate;
   description: string | null;
-  event_date: string | null;          // "YYYY-MM-DD" from Postgres date
-  primary_color: string;              // "#RRGGBB"
-  secondary_color: string;            // "#RRGGBB"
-  shots_per_strip: number;            // 1..6
+  event_date: string | null;
+  primary_color: string;
+  secondary_color: string;
+  shots_per_strip: number;
   invite_image_path: string | null;
+  background_2x6_path: string | null;
+  background_4x6_path: string | null;
+  strip_title: string | null;
+  strip_subtitle: string | null;
   gphotos_album_id: string | null;
   gphotos_share_url: string | null;
   created_at: string;
@@ -46,7 +48,8 @@ export interface PhotoRow {
 export interface StripRow {
   id: string;
   event_id: string;
-  composite_path: string | null;
+  composite_2x6_path: string | null;
+  composite_4x6_path: string | null;
   created_at: string;
 }
 
@@ -55,3 +58,5 @@ export interface StripPhotoRow {
   photo_id: string;
   position: number;
 }
+
+export type StripFormat = "2x6" | "4x6";

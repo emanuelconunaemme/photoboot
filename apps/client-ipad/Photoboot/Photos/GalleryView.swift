@@ -4,9 +4,17 @@ struct GalleryView: View {
     let event: Event
 
     @State private var store = GalleryStore()
+    @State private var settings = SettingsStore.shared
     @State private var selected: Strip?
 
-    private let columns = [GridItem(.adaptive(minimum: 160), spacing: 14)]
+    private var columns: [GridItem] {
+        switch settings.preferredFormat {
+        case .twoBySix:
+            return [GridItem(.adaptive(minimum: 160), spacing: 14)]
+        case .fourBySix:
+            return [GridItem(.adaptive(minimum: 240), spacing: 14)]
+        }
+    }
 
     var body: some View {
         content
@@ -44,7 +52,7 @@ struct GalleryView: View {
                 LazyVGrid(columns: columns, spacing: 14) {
                     ForEach(store.strips) { strip in
                         Button { selected = strip } label: {
-                            StripThumbnail(strip: strip)
+                            StripThumbnail(strip: strip, format: settings.preferredFormat)
                         }
                         .buttonStyle(.plain)
                     }
@@ -57,7 +65,15 @@ struct GalleryView: View {
 
 private struct StripThumbnail: View {
     let strip: Strip
+    let format: StripFormat
     @State private var url: URL?
+
+    private var aspectRatio: CGFloat {
+        switch format {
+        case .twoBySix: 3.0 / 5.0   // tall portrait
+        case .fourBySix: 3.0 / 2.0  // landscape
+        }
+    }
 
     var body: some View {
         AsyncImage(url: url) { phase in
@@ -75,7 +91,7 @@ private struct StripThumbnail: View {
                 placeholder
             }
         }
-        .aspectRatio(3.0 / 5.0, contentMode: .fill)
+        .aspectRatio(aspectRatio, contentMode: .fill)
         .frame(maxWidth: .infinity)
         .clipShape(.rect(cornerRadius: 18))
         .overlay(
@@ -83,8 +99,9 @@ private struct StripThumbnail: View {
                 .stroke(Brand.gradient, lineWidth: 2)
         )
         .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
-        .task {
-            url = try? await StripService.shared.signedURL(for: strip)
+        .task(id: format) {
+            url = nil
+            url = try? await StripService.shared.signedURL(for: strip, format: format)
         }
     }
 

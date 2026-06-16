@@ -6,6 +6,7 @@ struct EventHomeView: View {
 
     @Environment(AuthStore.self) private var auth
     @State private var route: Route?
+    @State private var showSettings = false
 
     enum Route: Hashable {
         case capture
@@ -43,9 +44,18 @@ struct EventHomeView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(event.name)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // Prefetch both backgrounds once when entering an event. Capture
+            // flow then reads from BackgroundCache instead of hitting the
+            // network per shot.
+            await BackgroundCache.shared.preload(for: event)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button("Settings", systemImage: "gearshape") {
+                        showSettings = true
+                    }
                     Button("Change event", systemImage: "arrow.triangle.swap", action: onChangeEvent)
                     Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right") {
                         Task { await auth.signOut() }
@@ -56,6 +66,9 @@ struct EventHomeView: View {
                         .foregroundStyle(Brand.pink)
                 }
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .navigationDestination(item: $route) { route in
             switch route {

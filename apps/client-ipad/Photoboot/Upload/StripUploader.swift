@@ -7,6 +7,9 @@ import os
 struct StripUploader {
     private let log = Logger(subsystem: "com.mazzillie.photoboot", category: "upload")
 
+    /// Uploads the 2 raw photos + both composites + creates the strip row.
+    /// Both composite paths are written in a single UPDATE so the
+    /// strip-ready trigger fires once (not twice).
     func upload(rawPhotos: [Data], for event: Event) async throws -> Strip {
         let client = SupabaseService.shared.client
 
@@ -54,8 +57,9 @@ struct StripUploader {
             log.info("photo \(idx + 1)/\(rawPhotos.count) uploaded")
         }
 
-        log.info("rendering strip composite")
-        guard let compositeData = StripRenderer.render(event: event, photos: images) else {
+        log.info("rendering both strip composites")
+        let (data2x6, data4x6) = StripRenderer.renderBoth(event: event, photos: images)
+        guard let data2x6, let data4x6 else {
             throw UploadError.renderFailed
         }
 
@@ -67,19 +71,27 @@ struct StripUploader {
             .execute()
             .value
 
-        let compositePath = "\(event.id.uuidString.lowercased())/\(stripInserted.id.uuidString.lowercased()).jpg"
+        let basePath = "\(event.id.uuidString.lowercased())/\(stripInserted.id.uuidString.lowercased())"
+        let path2x6 = "\(basePath)-2x6.jpg"
+        let path4x6 = "\(basePath)-4x6.jpg"
+
         _ = try await client.storage
             .from("composites")
-            .upload(
-                compositePath,
-                data: compositeData,
-                options: FileOptions(contentType: "image/jpeg")
-            )
-        log.info("uploaded composite (\(compositeData.count) bytes) to composites/\(compositePath)")
+            .upload(path2x6, data: data2x6, options: FileOptions(contentType: "image/jpeg"))
+        log.info("uploaded 2x6 composite (\(data2x6.count) bytes)")
 
+        _ = try await client.storage
+            .from("composites")
+            .upload(path4x6, data: data4x6, options: FileOptions(contentType: "image/jpeg"))
+        log.info("uploaded 4x6 composite (\(data4x6.count) bytes)")
+
+        // Single update so the strip-ready trigger fires exactly once.
         let strip: Strip = try await client
             .from("strips")
-            .update(StripCompositeUpdate(composite_path: compositePath))
+            .update(StripCompositesUpdate(
+                composite_2x6_path: path2x6,
+                composite_4x6_path: path4x6
+            ))
             .eq("id", value: stripInserted.id)
             .select(Strip.selectColumns)
             .single()
@@ -103,7 +115,7 @@ struct StripUploader {
             switch self {
             case .notAuthenticated: "Not signed in. Sign out and back in."
             case .invalidImageData: "Couldn't read captured image data."
-            case .renderFailed: "Couldn't render the strip composite."
+            case .renderFailed: "Couldn't render one or both strip composites."
             }
         }
     }
@@ -120,8 +132,9 @@ struct StripUploader {
     private struct NewStripInsert: Encodable {
         let event_id: UUID
     }
-    private struct StripCompositeUpdate: Encodable {
-        let composite_path: String
+    private struct StripCompositesUpdate: Encodable {
+        let composite_2x6_path: String
+        let composite_4x6_path: String
     }
     private struct NewStripPhoto: Encodable {
         let strip_id: UUID

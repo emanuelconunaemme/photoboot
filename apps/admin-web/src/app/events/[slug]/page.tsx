@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
 import type { EventRow, PhotoRow, StripRow } from "@/lib/database";
 import { PhotoGrid, type PhotoWithUrl } from "./PhotoGrid";
-import { StripGrid, type StripWithUrl } from "./StripGrid";
+import { StripGrid, type StripWithUrls } from "./StripGrid";
 
 const SIGNED_URL_TTL_SECONDS = 3600;
 
@@ -25,7 +25,7 @@ export default async function EventPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, shots_per_strip",
+      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path",
     )
     .eq("slug", slug)
     .maybeSingle<
@@ -40,45 +40,52 @@ export default async function EventPage({
         | "event_date"
         | "primary_color"
         | "secondary_color"
-        | "shots_per_strip"
+        | "strip_title"
+        | "strip_subtitle"
+        | "background_2x6_path"
+        | "background_4x6_path"
       >
     >();
 
   if (!event) notFound();
 
-  // Strips (the deliverable unit)
   const { data: strips } = await supabase
     .from("strips")
-    .select("id, event_id, composite_path, created_at")
+    .select("id, event_id, composite_2x6_path, composite_4x6_path, created_at")
     .eq("event_id", event.id)
     .order("created_at", { ascending: false })
-    .returns<Pick<StripRow, "id" | "event_id" | "composite_path" | "created_at">[]>();
+    .returns<Pick<StripRow, "id" | "event_id" | "composite_2x6_path" | "composite_4x6_path" | "created_at">[]>();
 
   const readyStrips = (strips ?? []).filter(
-    (s): s is typeof s & { composite_path: string } => Boolean(s.composite_path),
+    (s) => s.composite_2x6_path || s.composite_4x6_path,
   );
 
-  const stripSigned = readyStrips.length
+  const allCompositePaths = readyStrips.flatMap((s) =>
+    [s.composite_2x6_path, s.composite_4x6_path].filter(
+      (p): p is string => p !== null,
+    ),
+  );
+
+  const stripSigned = allCompositePaths.length
     ? await supabase.storage
         .from("composites")
-        .createSignedUrls(
-          readyStrips.map((s) => s.composite_path),
-          SIGNED_URL_TTL_SECONDS,
-        )
+        .createSignedUrls(allCompositePaths, SIGNED_URL_TTL_SECONDS)
     : { data: [], error: null };
 
   const stripUrlByPath = new Map(
     (stripSigned.data ?? []).map((entry) => [entry.path ?? "", entry.signedUrl]),
   );
 
-  const initialStrips: StripWithUrl[] = readyStrips.map((s) => ({
+  const initialStrips: StripWithUrls[] = readyStrips.map((s) => ({
     id: s.id,
-    composite_path: s.composite_path,
+    composite_2x6_path: s.composite_2x6_path,
+    composite_4x6_path: s.composite_4x6_path,
+    url_2x6: s.composite_2x6_path ? stripUrlByPath.get(s.composite_2x6_path) ?? null : null,
+    url_4x6: s.composite_4x6_path ? stripUrlByPath.get(s.composite_4x6_path) ?? null : null,
     created_at: s.created_at,
-    signed_url: stripUrlByPath.get(s.composite_path) ?? null,
   }));
 
-  // Raw photos (provenance / archive)
+  // Raw photos
   const { data: photos } = await supabase
     .from("photos")
     .select("id, event_id, status, capture_mode, storage_path, taken_at, ready_at")
@@ -111,6 +118,14 @@ export default async function EventPage({
     capture_mode: p.capture_mode,
     signed_url: photoUrlByPath.get(p.storage_path) ?? null,
   }));
+
+  // Background image public URLs (templates bucket is public-read)
+  const bg2x6Url = event.background_2x6_path
+    ? supabase.storage.from("templates").getPublicUrl(event.background_2x6_path).data.publicUrl
+    : null;
+  const bg4x6Url = event.background_4x6_path
+    ? supabase.storage.from("templates").getPublicUrl(event.background_4x6_path).data.publicUrl
+    : null;
 
   const statusClass = STATUS_CLASSES[event.status] ?? STATUS_CLASSES.draft;
   const formattedDate = event.event_date
@@ -147,11 +162,6 @@ export default async function EventPage({
               >
                 {event.status}
               </span>
-              <span>·</span>
-              <span>
-                {event.shots_per_strip}{" "}
-                {event.shots_per_strip === 1 ? "shot" : "shots"}/strip
-              </span>
               {formattedDate ? (
                 <>
                   <span>·</span>
@@ -164,6 +174,22 @@ export default async function EventPage({
                 {event.description}
               </p>
             ) : null}
+            {(event.strip_title || event.strip_subtitle) ? (
+              <div className="mt-3 inline-block rounded-md bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600">
+                <span className="text-zinc-400">Strip text: </span>
+                {event.strip_title ? (
+                  <span style={{ color: event.primary_color }} className="font-semibold">
+                    {event.strip_title}
+                  </span>
+                ) : null}
+                {event.strip_title && event.strip_subtitle ? <span> / </span> : null}
+                {event.strip_subtitle ? (
+                  <span style={{ color: event.secondary_color }}>
+                    {event.strip_subtitle}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -171,6 +197,22 @@ export default async function EventPage({
             <ColorSwatch label="Secondary" hex={event.secondary_color} />
           </div>
         </div>
+
+        {bg2x6Url || bg4x6Url ? (
+          <section className="mt-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+              Backgrounds
+            </h2>
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {bg2x6Url ? (
+                <BackgroundPreview label="2×6" url={bg2x6Url} aspect="aspect-[1/3]" />
+              ) : null}
+              {bg4x6Url ? (
+                <BackgroundPreview label="4×6" url={bg4x6Url} aspect="aspect-[3/2]" />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-10">
           <div className="flex items-baseline justify-between">
@@ -217,6 +259,28 @@ function ColorSwatch({ label, hex }: { label: string; hex: string }) {
         <span className="text-zinc-400">{label}</span>{" "}
         <span className="font-mono">{hex}</span>
       </span>
+    </div>
+  );
+}
+
+function BackgroundPreview({
+  label,
+  url,
+  aspect,
+}: {
+  label: string;
+  url: string;
+  aspect: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-3 ring-1 ring-zinc-200">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <div className={`${aspect} overflow-hidden rounded-lg bg-zinc-100`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={`${label} background`} className="h-full w-full object-cover" />
+      </div>
     </div>
   );
 }

@@ -1,72 +1,172 @@
 import SwiftUI
 import UIKit
 
-// Renders a photo-booth-style strip composite from N captured images.
-// Used at capture time to produce the JPEG we upload to the `composites` bucket.
-struct StripView: View {
+// MARK: - 2×6 strip (portrait, 1:3 aspect)
+
+struct StripView2x6: View {
     let event: Event
     let photos: [UIImage]
+    let backgroundImage: UIImage?
 
-    // Inner photo cell dimensions — landscape crop reads well at strip width.
-    private let photoWidth: CGFloat = 720
-    private let photoHeight: CGFloat = 480
+    private let canvasWidth: CGFloat = 600
+    private let canvasHeight: CGFloat = 1800
+    private let photoWidth: CGFloat = 520
+    private let photoHeight: CGFloat = 600
 
     var body: some View {
-        let primary = Color(hex: event.primaryColor)
-        let secondary = Color(hex: event.secondaryColor)
-
-        VStack(spacing: 12) {
-            ForEach(photos.indices, id: \.self) { i in
-                Image(uiImage: photos[i])
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: photoWidth, height: photoHeight)
-                    .clipped()
-                    .clipShape(.rect(cornerRadius: 10))
-            }
-
-            VStack(spacing: 6) {
-                Text(event.name)
-                    .font(.system(size: 36, weight: .heavy))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                if let dateText = formattedDate {
-                    Text(dateText)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.9))
+        ZStack {
+            background
+            VStack(spacing: 40) {
+                ForEach(photos.prefix(2).indices, id: \.self) { i in
+                    Image(uiImage: photos[i])
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: photoWidth, height: photoHeight)
+                        .clipped()
+                        .clipShape(.rect(cornerRadius: 12))
                 }
+                Spacer(minLength: 24)
+                VStack(spacing: 10) {
+                    Text(event.effectiveStripTitle)
+                        .font(.system(size: 56, weight: .heavy))
+                        .foregroundStyle(Color(hex: event.primaryColor))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    if let subtitle = event.effectiveStripSubtitle {
+                        Text(subtitle)
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundStyle(Color(hex: event.secondaryColor))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
+                .frame(width: photoWidth)
             }
-            .frame(width: photoWidth)
-            .padding(.vertical, 18)
-            .background(
-                LinearGradient(
-                    colors: [primary, secondary],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .clipShape(.rect(cornerRadius: 10))
+            .padding(40)
         }
-        .padding(20)
-        .background(Color.white)
+        .frame(width: canvasWidth, height: canvasHeight)
     }
 
-    private var formattedDate: String? {
-        guard let date = event.eventDateValue else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        return formatter.string(from: date)
+    @ViewBuilder
+    private var background: some View {
+        if let bg = backgroundImage {
+            Image(uiImage: bg)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: canvasWidth, height: canvasHeight)
+                .clipped()
+        } else {
+            LinearGradient(
+                colors: [Color(hex: event.primaryColor), Color(hex: event.secondaryColor)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 }
 
+// MARK: - 4×6 print (landscape, 3:2 aspect)
+
+struct StripView4x6: View {
+    let event: Event
+    let photos: [UIImage]
+    let backgroundImage: UIImage?
+
+    private let canvasWidth: CGFloat = 1800
+    private let canvasHeight: CGFloat = 1200
+    private let photoWidth: CGFloat = 800
+    private let photoHeight: CGFloat = 530
+
+    var body: some View {
+        ZStack {
+            background
+            HStack(spacing: 0) {
+                VStack(spacing: 40) {
+                    ForEach(photos.prefix(2).indices, id: \.self) { i in
+                        Image(uiImage: photos[i])
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: photoWidth, height: photoHeight)
+                            .clipped()
+                            .clipShape(.rect(cornerRadius: 14))
+                    }
+                }
+                .frame(width: canvasWidth / 2)
+
+                VStack(spacing: 20) {
+                    Text(event.effectiveStripTitle)
+                        .font(.system(size: 84, weight: .heavy))
+                        .foregroundStyle(Color(hex: event.primaryColor))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.5)
+                    if let subtitle = event.effectiveStripSubtitle {
+                        Text(subtitle)
+                            .font(.system(size: 44, weight: .semibold))
+                            .foregroundStyle(Color(hex: event.secondaryColor))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.6)
+                    }
+                }
+                .padding(40)
+                .frame(width: canvasWidth / 2)
+            }
+        }
+        .frame(width: canvasWidth, height: canvasHeight)
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        if let bg = backgroundImage {
+            Image(uiImage: bg)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: canvasWidth, height: canvasHeight)
+                .clipped()
+        } else {
+            LinearGradient(
+                colors: [Color(hex: event.primaryColor), Color(hex: event.secondaryColor)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+    }
+}
+
+// MARK: - Renderer
+
 @MainActor
 enum StripRenderer {
-    static func render(event: Event, photos: [UIImage]) -> Data? {
-        let view = StripView(event: event, photos: photos)
+    /// Renders both formats from the same raw photos + event metadata.
+    /// Backgrounds are read from the BackgroundCache — caller is expected to
+    /// have preloaded them already (e.g., via `BackgroundCache.preload(for:)`).
+    static func renderBoth(event: Event, photos: [UIImage]) -> (twoBySix: Data?, fourBySix: Data?) {
+        let bg2x6 = BackgroundCache.shared.image(for: event.backgroundPath2x6)
+        let bg4x6 = BackgroundCache.shared.image(for: event.backgroundPath4x6)
+        let v2x6 = StripView2x6(event: event, photos: photos, backgroundImage: bg2x6)
+        let v4x6 = StripView4x6(event: event, photos: photos, backgroundImage: bg4x6)
+        return (renderToData(v2x6), renderToData(v4x6))
+    }
+
+    /// Renders a single format — used by CaptureFlowView for the instant
+    /// preview shown on the detail screen before the upload finishes.
+    static func render(event: Event, photos: [UIImage], format: StripFormat) -> Data? {
+        let bgPath = event.backgroundPath(for: format)
+        let bg = BackgroundCache.shared.image(for: bgPath)
+        switch format {
+        case .twoBySix:
+            return renderToData(StripView2x6(event: event, photos: photos, backgroundImage: bg))
+        case .fourBySix:
+            return renderToData(StripView4x6(event: event, photos: photos, backgroundImage: bg))
+        }
+    }
+
+    private static func renderToData<V: View>(_ view: V) -> Data? {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2.0
-        guard let uiImage = renderer.uiImage else { return nil }
-        return uiImage.jpegData(compressionQuality: 0.88)
+        return renderer.uiImage?.jpegData(compressionQuality: 0.88)
     }
 }

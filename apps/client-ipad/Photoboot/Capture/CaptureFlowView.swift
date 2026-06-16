@@ -6,11 +6,14 @@ struct CaptureFlowView: View {
 
     @State private var camera = CameraController()
     @State private var uploader = StripUploader()
+    @State private var settings = SettingsStore.shared
     @State private var phase: Phase = .idle
     @State private var countdown = 3
     @State private var shotsTaken: [Data] = []
     @State private var uploadedStrip: Strip?
     @State private var errorMessage: String?
+
+    private let shotsTotal = 2
 
     enum Phase {
         case idle
@@ -90,7 +93,7 @@ struct CaptureFlowView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 260)
+                            .frame(height: 320)
                             .clipped()
                             .clipShape(.rect(cornerRadius: 16))
                     }
@@ -115,7 +118,7 @@ struct CaptureFlowView: View {
         case .counting:
             Text("\(countdown)")
                 .font(.system(size: 240, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(countdownColor)
                 .shadow(radius: 8)
                 .contentTransition(.numericText(value: Double(countdown)))
         case .review:
@@ -129,19 +132,21 @@ struct CaptureFlowView: View {
     }
 
     private var idleSubtitle: String {
-        let n = event.shotsPerStrip
-        return n == 1 ? "One photo strip" : "\(n) photos · \(n - 1) quick pauses"
+        "2 photos · \(settings.firstCountdownSeconds)s then \(settings.nextCountdownSeconds)s"
+    }
+
+    private var countdownColor: Color {
+        let shotNumber = shotsTaken.count + 1
+        return shotNumber.isMultiple(of: 2)
+            ? Brand.eventSecondary(for: event)
+            : Brand.eventPrimary(for: event)
     }
 
     private var progressDots: some View {
         HStack(spacing: 10) {
-            ForEach(0..<event.shotsPerStrip, id: \.self) { i in
+            ForEach(0..<shotsTotal, id: \.self) { i in
                 Circle()
-                    .fill(
-                        i < shotsTaken.count
-                            ? AnyShapeStyle(Brand.gradient)
-                            : AnyShapeStyle(Color.white.opacity(0.3))
-                    )
+                    .fill(dotColor(at: i))
                     .frame(width: 14, height: 14)
             }
         }
@@ -150,12 +155,20 @@ struct CaptureFlowView: View {
         .background(.black.opacity(0.45), in: .capsule)
     }
 
+    private func dotColor(at index: Int) -> Color {
+        guard index < shotsTaken.count else { return .white.opacity(0.3) }
+        let shotNumber = index + 1
+        return shotNumber.isMultiple(of: 2)
+            ? Brand.eventSecondary(for: event)
+            : Brand.eventPrimary(for: event)
+    }
+
     private var captureButton: some View {
         Button(action: startCountdownChain) {
             ZStack {
                 Circle().fill(.white).frame(width: 96, height: 96)
                 Circle()
-                    .stroke(Brand.gradient, lineWidth: 6)
+                    .stroke(Brand.eventGradient(for: event), lineWidth: 6)
                     .frame(width: 110, height: 110)
             }
         }
@@ -185,9 +198,11 @@ struct CaptureFlowView: View {
         errorMessage = nil
         shotsTaken = []
         Task {
-            for shotIndex in 1...event.shotsPerStrip {
+            for shotIndex in 1...shotsTotal {
                 phase = .counting
-                countdown = 3
+                countdown = shotIndex == 1
+                    ? settings.firstCountdownSeconds
+                    : settings.nextCountdownSeconds
                 while countdown > 0 {
                     try? await Task.sleep(for: .seconds(1))
                     countdown -= 1
@@ -195,7 +210,7 @@ struct CaptureFlowView: View {
                 do {
                     let data = try await camera.capture()
                     shotsTaken.append(data)
-                    if shotIndex < event.shotsPerStrip {
+                    if shotIndex < shotsTotal {
                         try? await Task.sleep(for: .milliseconds(350))
                     }
                 } catch {
@@ -222,12 +237,17 @@ struct CaptureFlowView: View {
         }
     }
 
-    /// Renders the same StripView client-side so the detail screen can show
-    /// the composite instantly without waiting for the signed-URL round-trip.
+    /// Renders the user's preferred format client-side so the detail screen
+    /// shows the strip instantly. Backgrounds were preloaded by
+    /// BackgroundCache when entering the event, so this is fast.
     private func lastCompositePreviewData() -> Data? {
         let images = shotsTaken.compactMap { UIImage(data: $0) }
         guard !images.isEmpty else { return nil }
-        return StripRenderer.render(event: event, photos: images)
+        return StripRenderer.render(
+            event: event,
+            photos: images,
+            format: settings.preferredFormat
+        )
     }
 
     private func reset() {
