@@ -14,6 +14,7 @@ struct Event: Identifiable, Codable, Hashable, Sendable {
     let backgroundPath2x6: String?
     let backgroundPath4x6: String?
     let createdAt: Date
+    let updatedAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +30,7 @@ struct Event: Identifiable, Codable, Hashable, Sendable {
         case backgroundPath2x6 = "background_2x6_path"
         case backgroundPath4x6 = "background_4x6_path"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 
     /// Effective title used on the strip composite — falls back to event name.
@@ -64,7 +66,7 @@ struct Event: Identifiable, Codable, Hashable, Sendable {
     }
 
     static let selectColumns =
-        "id, name, slug, status, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path, created_at"
+        "id, name, slug, status, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path, created_at, updated_at"
 }
 
 enum StripFormat: String, CaseIterable, Codable, Sendable, Identifiable {

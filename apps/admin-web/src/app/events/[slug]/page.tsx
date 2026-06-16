@@ -25,7 +25,7 @@ export default async function EventPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path",
+      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path, updated_at",
     )
     .eq("slug", slug)
     .maybeSingle<
@@ -44,6 +44,7 @@ export default async function EventPage({
         | "strip_subtitle"
         | "background_2x6_path"
         | "background_4x6_path"
+        | "updated_at"
       >
     >();
 
@@ -119,12 +120,15 @@ export default async function EventPage({
     signed_url: photoUrlByPath.get(p.storage_path) ?? null,
   }));
 
-  // Background image public URLs (templates bucket is public-read)
+  // Background image public URLs (templates bucket is public-read).
+  // Append updated_at as a cache-buster: same path = same URL, so the
+  // browser would otherwise hold the old image forever after an edit.
+  const version = encodeURIComponent(event.updated_at);
   const bg2x6Url = event.background_2x6_path
-    ? supabase.storage.from("templates").getPublicUrl(event.background_2x6_path).data.publicUrl
+    ? `${supabase.storage.from("templates").getPublicUrl(event.background_2x6_path).data.publicUrl}?v=${version}`
     : null;
   const bg4x6Url = event.background_4x6_path
-    ? supabase.storage.from("templates").getPublicUrl(event.background_4x6_path).data.publicUrl
+    ? `${supabase.storage.from("templates").getPublicUrl(event.background_4x6_path).data.publicUrl}?v=${version}`
     : null;
 
   const statusClass = STATUS_CLASSES[event.status] ?? STATUS_CLASSES.draft;

@@ -16,7 +16,7 @@ export default async function EditEventPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path",
+      "id, name, slug, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path, updated_at",
     )
     .eq("slug", slug)
     .maybeSingle<
@@ -33,16 +33,18 @@ export default async function EditEventPage({
         | "strip_subtitle"
         | "background_2x6_path"
         | "background_4x6_path"
+        | "updated_at"
       >
     >();
 
   if (!event) notFound();
 
+  const version = encodeURIComponent(event.updated_at);
   const bg2x6Url = event.background_2x6_path
-    ? supabase.storage.from("templates").getPublicUrl(event.background_2x6_path).data.publicUrl
+    ? `${supabase.storage.from("templates").getPublicUrl(event.background_2x6_path).data.publicUrl}?v=${version}`
     : null;
   const bg4x6Url = event.background_4x6_path
-    ? supabase.storage.from("templates").getPublicUrl(event.background_4x6_path).data.publicUrl
+    ? `${supabase.storage.from("templates").getPublicUrl(event.background_4x6_path).data.publicUrl}?v=${version}`
     : null;
 
   const initial: EditInitialValues = {
