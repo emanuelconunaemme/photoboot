@@ -25,17 +25,22 @@
   --color-ig-yellow: var(--ig-yellow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Admin is light-only — no dark-mode design. Removing the prefers-color-scheme
+   override that was scaffolded by create-next-app, since it was flipping input
+   text to light grey on systems set to dark mode. */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Belt + suspenders: force readable text inside form controls regardless of
+   any other inherited styles. */
+input,
+textarea,
+select {
+  color: var(--foreground);
 }
 
 /* Instagram gradient — applied to primary CTAs and the logo. */
