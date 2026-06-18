@@ -57,14 +57,16 @@
 	</dict>
 	<key>UIRequiresFullScreen</key>
 	<true/>
-	<!-- Locked to landscape on iPad. Photo strip layouts (especially 4×6)
-	     want landscape captures, and the front camera in landscape gives a
-	     natural mirror view. Either landscape orientation is OK so the
-	     iPad can be flipped 180° in its stand without breaking. -->
+	<!-- Locked to portrait on iPad. The front camera sits on the long edge,
+	     so landscape puts it awkwardly off to one side (faces look weirdly
+	     framed). Portrait keeps the camera centered above the user — the
+	     natural mirror view for a photo booth. Strip layouts adapt to
+	     portrait photo cells. Both portrait orientations allowed so the
+	     stand can face either way. -->
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 </dict>
 </plist>

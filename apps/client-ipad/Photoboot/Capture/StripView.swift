@@ -76,14 +76,17 @@ struct StripView4x6: View {
 
     private let canvasWidth: CGFloat = 1800
     private let canvasHeight: CGFloat = 1200
-    private let photoWidth: CGFloat = 800
-    private let photoHeight: CGFloat = 530
+
+    // Two portrait photos side-by-side on the left half. iPad captures
+    // portrait, so cells are portrait too (no head-cropping landscape squeeze).
+    private let photoWidth: CGFloat = 400
+    private let photoHeight: CGFloat = 533   // 3:4 portrait
 
     var body: some View {
         ZStack {
             background
             HStack(spacing: 0) {
-                VStack(spacing: 40) {
+                HStack(spacing: 30) {
                     ForEach(photos.prefix(2).indices, id: \.self) { i in
                         Image(uiImage: photos[i])
                             .resizable()
