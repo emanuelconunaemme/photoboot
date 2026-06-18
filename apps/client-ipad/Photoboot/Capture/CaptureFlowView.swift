@@ -10,6 +10,7 @@ struct CaptureFlowView: View {
     @State private var phase: Phase = .idle
     @State private var countdown = 3
     @State private var shotsTaken: [Data] = []
+    @State private var reviewImages: (twoBySix: UIImage?, fourBySix: UIImage?) = (nil, nil)
     @State private var uploadedStrip: Strip?
     @State private var errorMessage: String?
 
@@ -84,23 +85,37 @@ struct CaptureFlowView: View {
         }
     }
 
+    /// Shows the rendered 4×6 + 2×6 composites side-by-side, scaled to fit
+    /// the available space above the action buttons. No cropping — each
+    /// keeps its true print aspect.
     private var reviewBackground: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                ForEach(shotsTaken.indices, id: \.self) { i in
-                    if let img = UIImage(data: shotsTaken[i]) {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(.rect(cornerRadius: 16))
-                    }
-                }
-                Color.clear.frame(height: 180)
-            }
-            .padding(20)
-            .padding(.top, 60)
+        HStack(alignment: .center, spacing: 16) {
+            formatPreview(image: reviewImages.fourBySix, label: "4×6 print")
+            formatPreview(image: reviewImages.twoBySix, label: "2×6 strip")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 60)
+        .padding(.bottom, 160)
+        .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder
+    private func formatPreview(image: UIImage?, label: String) -> some View {
+        VStack(spacing: 8) {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(.rect(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.4), radius: 14, y: 6)
+            } else {
+                ProgressView().tint(.white)
+            }
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.75))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -195,6 +210,7 @@ struct CaptureFlowView: View {
     private func startCountdownChain() {
         errorMessage = nil
         shotsTaken = []
+        reviewImages = (nil, nil)
         Task {
             for shotIndex in 1...shotsTotal {
                 phase = .counting
@@ -217,6 +233,12 @@ struct CaptureFlowView: View {
                     return
                 }
             }
+            // Render both composites for the review preview before flipping
+            // into the review phase. ImageRenderer is fast — finishes well
+            // under a second on iPad — and gives the user a true print-time
+            // preview instead of raw captures.
+            let images = shotsTaken.compactMap { UIImage(data: $0) }
+            reviewImages = StripRenderer.renderBothImages(event: event, photos: images)
             phase = .review
         }
     }
@@ -250,6 +272,7 @@ struct CaptureFlowView: View {
 
     private func reset() {
         shotsTaken = []
+        reviewImages = (nil, nil)
         uploadedStrip = nil
         errorMessage = nil
         phase = .idle
