@@ -10,13 +10,13 @@ struct StripView2x6: View {
 
     private let canvasWidth: CGFloat = 600
     private let canvasHeight: CGFloat = 1800
-    private let photoWidth: CGFloat = 520
-    private let photoHeight: CGFloat = 600
+    private let photoWidth: CGFloat = 552
+    private let photoHeight: CGFloat = 736   // 3:4 portrait
 
     var body: some View {
         ZStack {
             background
-            VStack(spacing: 40) {
+            VStack(spacing: 20) {
                 ForEach(photos.prefix(2).indices, id: \.self) { i in
                     Image(uiImage: photos[i])
                         .resizable()
@@ -25,7 +25,7 @@ struct StripView2x6: View {
                         .clipped()
                         .clipShape(.rect(cornerRadius: 12))
                 }
-                Spacer(minLength: 24)
+                Spacer(minLength: 12)
                 VStack(spacing: 10) {
                     Text(event.effectiveStripTitle)
                         .font(.system(size: 56, weight: .heavy))
@@ -44,7 +44,7 @@ struct StripView2x6: View {
                 }
                 .frame(width: photoWidth)
             }
-            .padding(40)
+            .padding(24)
         }
         .frame(width: canvasWidth, height: canvasHeight)
     }
@@ -77,16 +77,16 @@ struct StripView4x6: View {
     private let canvasWidth: CGFloat = 1800
     private let canvasHeight: CGFloat = 1200
 
-    // Two portrait photos side-by-side on the left half. iPad captures
-    // portrait, so cells are portrait too (no head-cropping landscape squeeze).
-    private let photoWidth: CGFloat = 400
-    private let photoHeight: CGFloat = 533   // 3:4 portrait
+    // Two portrait photos stacked vertically in the left half. Title +
+    // subtitle take the right half.
+    private let photoWidth: CGFloat = 420
+    private let photoHeight: CGFloat = 560   // 3:4 portrait
 
     var body: some View {
         ZStack {
             background
             HStack(spacing: 0) {
-                HStack(spacing: 30) {
+                VStack(spacing: 20) {
                     ForEach(photos.prefix(2).indices, id: \.self) { i in
                         Image(uiImage: photos[i])
                             .resizable()
@@ -117,6 +117,7 @@ struct StripView4x6: View {
                 .padding(40)
                 .frame(width: canvasWidth / 2)
             }
+            .padding(24)
         }
         .frame(width: canvasWidth, height: canvasHeight)
     }

@@ -11,7 +11,6 @@ struct StripDetailView: View {
 
     @State private var image: UIImage?
     @State private var imageLoadError: String?
-    @State private var displayedFormat: StripFormat
     @State private var deliverySheet: StripService.DeliveryChannel?
     @State private var showDeleteConfirm = false
     @State private var statusMessage: String?
@@ -25,20 +24,18 @@ struct StripDetailView: View {
         self.strip = strip
         self.initialImageData = initialImageData
         self.onDelete = onDelete
-        self._displayedFormat = State(initialValue: SettingsStore.shared.preferredFormat)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             photoArea
-            formatToggle
             actionBar
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Your strip")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadImage() }
-        .onChange(of: displayedFormat) { _, _ in
+        .onChange(of: settings.preferredFormat) { _, _ in
             image = nil
             imageLoadError = nil
             Task { await loadImage() }
@@ -93,17 +90,6 @@ struct StripDetailView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var formatToggle: some View {
-        Picker("Format", selection: $displayedFormat) {
-            ForEach(StripFormat.allCases) { format in
-                Text(format.displayName).tag(format)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 12)
     }
 
     private var actionBar: some View {
@@ -161,17 +147,19 @@ struct StripDetailView: View {
     // MARK: - Loading
 
     private func loadImage() async {
-        // If we have an instant preview and it matches the displayed format,
-        // use it. Otherwise download from storage.
+        // If we have an instant preview from the capture flow (and it
+        // matches the user's current preferred format), use it directly.
+        // Otherwise download from storage.
         if image != nil { return }
-        if let data = initialImageData,
-           displayedFormat == settings.preferredFormat,
-           let ui = UIImage(data: data) {
+        if let data = initialImageData, let ui = UIImage(data: data) {
             image = ui
             return
         }
         do {
-            let data = try await StripService.shared.downloadImageData(for: strip, format: displayedFormat)
+            let data = try await StripService.shared.downloadImageData(
+                for: strip,
+                format: settings.preferredFormat
+            )
             image = UIImage(data: data)
         } catch {
             imageLoadError = error.localizedDescription
@@ -184,7 +172,7 @@ struct StripDetailView: View {
         guard let image else { return }
         let info = UIPrintInfo.printInfo()
         info.outputType = .photo
-        info.jobName = "Photoboot \(displayedFormat.rawValue) — \(strip.id.uuidString.prefix(8))"
+        info.jobName = "Photoboot \(settings.preferredFormat.rawValue) — \(strip.id.uuidString.prefix(8))"
 
         let controller = UIPrintInteractionController.shared
         controller.printInfo = info
