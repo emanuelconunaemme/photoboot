@@ -91,10 +91,8 @@ struct CaptureFlowView: View {
                     if let img = UIImage(data: shotsTaken[i]) {
                         Image(uiImage: img)
                             .resizable()
-                            .aspectRatio(contentMode: .fill)
+                            .scaledToFit()
                             .frame(maxWidth: .infinity)
-                            .frame(height: 320)
-                            .clipped()
                             .clipShape(.rect(cornerRadius: 16))
                     }
                 }
