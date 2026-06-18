@@ -2,11 +2,13 @@ import SwiftUI
 
 struct EventHomeView: View {
     let event: Event
+    var autoOpenCapture: Bool = false
     let onChangeEvent: () -> Void
 
     @Environment(AuthStore.self) private var auth
     @State private var route: Route?
     @State private var showSettings = false
+    @State private var didAutoOpen = false
 
     enum Route: Hashable {
         case capture
@@ -45,6 +47,16 @@ struct EventHomeView: View {
         .navigationTitle(event.name)
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            // If we entered with autoOpenCapture (the last-used event was
+            // resolved automatically on launch), push the camera before
+            // doing anything else so the operator lands directly on the
+            // capture screen. Tapping back returns here. didAutoOpen
+            // prevents re-firing on subsequent appearances.
+            if autoOpenCapture && !didAutoOpen {
+                didAutoOpen = true
+                route = .capture
+            }
+
             // Prefetch both backgrounds once when entering an event. Capture
             // flow then reads from BackgroundCache instead of hitting the
             // network per shot.

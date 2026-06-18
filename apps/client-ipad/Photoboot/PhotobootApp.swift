@@ -30,6 +30,7 @@ private struct RootView: View {
 
 private struct SignedInRoot: View {
     @State private var currentEvent: Event?
+    @State private var autoOpenCapture = false
     @State private var isResolving = true
 
     var body: some View {
@@ -38,8 +39,12 @@ private struct SignedInRoot: View {
                 ProgressView().controlSize(.large)
             } else if let currentEvent {
                 NavigationStack {
-                    EventHomeView(event: currentEvent) {
+                    EventHomeView(
+                        event: currentEvent,
+                        autoOpenCapture: autoOpenCapture
+                    ) {
                         EventsStore.clearRemembered()
+                        autoOpenCapture = false
                         self.currentEvent = nil
                     }
                 }
@@ -47,13 +52,20 @@ private struct SignedInRoot: View {
             } else {
                 NavigationStack {
                     EventPickerView { event in
+                        // User explicitly picked an event — show event home,
+                        // not the camera. Auto-open only happens when the
+                        // last-used event is resolved automatically on launch.
+                        autoOpenCapture = false
                         currentEvent = event
                     }
                 }
             }
         }
         .task {
-            currentEvent = await EventsStore.resolveLastSelected()
+            if let resolved = await EventsStore.resolveLastSelected() {
+                autoOpenCapture = true
+                currentEvent = resolved
+            }
             isResolving = false
         }
     }
