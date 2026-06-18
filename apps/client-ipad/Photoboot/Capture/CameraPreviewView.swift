@@ -38,9 +38,8 @@ struct CameraPreviewView: UIViewRepresentable {
         }
 
         func applyCurrentRotation() {
-            guard let connection = previewLayer.connection,
-                  let angle = CameraOrientation.videoRotationAngle(for: UIDevice.current.orientation)
-            else { return }
+            guard let connection = previewLayer.connection else { return }
+            let angle = CameraOrientation.videoRotationAngle(for: UIDevice.current.orientation)
             if connection.isVideoRotationAngleSupported(angle) {
                 connection.videoRotationAngle = angle
             }
@@ -54,14 +53,16 @@ struct CameraPreviewView: UIViewRepresentable {
 
 // Shared helper used by both the preview layer and the photo output to map
 // device orientation → AVCaptureConnection.videoRotationAngle (degrees).
+//
+// The app is locked to landscape in Info.plist, so only the two landscape
+// cases are expected. The default protects against transient .unknown /
+// .faceUp / .faceDown states during launch by defaulting to landscape-left.
 enum CameraOrientation {
-    static func videoRotationAngle(for orientation: UIDeviceOrientation) -> CGFloat? {
+    static func videoRotationAngle(for orientation: UIDeviceOrientation) -> CGFloat {
         switch orientation {
-        case .portrait: 90
-        case .portraitUpsideDown: 270
-        case .landscapeLeft: 0       // home button on the right
-        case .landscapeRight: 180    // home button on the left
-        default: nil                 // .unknown / .faceUp / .faceDown — keep last
+        case .landscapeLeft: 0       // USB-C / home on the right
+        case .landscapeRight: 180    // USB-C / home on the left
+        default: 0
         }
     }
 }
