@@ -10,7 +10,6 @@ struct CaptureFlowView: View {
     @State private var phase: Phase = .idle
     @State private var countdown = 3
     @State private var shotsTaken: [Data] = []
-    @State private var reviewImages: (twoBySix: UIImage?, fourBySix: UIImage?) = (nil, nil)
     @State private var uploadedStrip: Strip?
     @State private var errorMessage: String?
 
@@ -85,37 +84,38 @@ struct CaptureFlowView: View {
         }
     }
 
-    /// Shows the rendered 4×6 + 2×6 composites side-by-side, scaled to fit
-    /// the available space above the action buttons. No cropping — each
-    /// keeps its true print aspect.
+    /// Two captures stacked vertically, each at the strip's landscape
+    /// aspect (6:4 = 3:2). Sized so both fit in the available height
+    /// above the action buttons. No background, no composite — just the
+    /// shots cropped to the print aspect so the user can see whether
+    /// faces are well-framed.
     private var reviewBackground: some View {
-        HStack(alignment: .center, spacing: 16) {
-            formatPreview(image: reviewImages.fourBySix, label: "4×6 print")
-            formatPreview(image: reviewImages.twoBySix, label: "2×6 strip")
+        GeometryReader { proxy in
+            let gap: CGFloat = 16
+            let availableHeight = proxy.size.height
+            let perHeight = max((availableHeight - gap) / 2, 100)
+            let perWidth = min(perHeight * 3.0 / 2.0, proxy.size.width)
+
+            VStack(spacing: gap) {
+                ForEach(shotsTaken.indices, id: \.self) { i in
+                    if let img = UIImage(data: shotsTaken[i]) {
+                        Color.clear
+                            .frame(width: perWidth, height: perHeight)
+                            .overlay {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                            }
+                            .clipShape(.rect(cornerRadius: 14))
+                            .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 60)
         .padding(.bottom, 160)
         .padding(.horizontal, 20)
-    }
-
-    @ViewBuilder
-    private func formatPreview(image: UIImage?, label: String) -> some View {
-        VStack(spacing: 8) {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .clipShape(.rect(cornerRadius: 12))
-                    .shadow(color: .black.opacity(0.4), radius: 14, y: 6)
-            } else {
-                ProgressView().tint(.white)
-            }
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.75))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -233,12 +233,6 @@ struct CaptureFlowView: View {
                     return
                 }
             }
-            // Render both composites for the review preview before flipping
-            // into the review phase. ImageRenderer is fast — finishes well
-            // under a second on iPad — and gives the user a true print-time
-            // preview instead of raw captures.
-            let images = shotsTaken.compactMap { UIImage(data: $0) }
-            reviewImages = StripRenderer.renderBothImages(event: event, photos: images)
             phase = .review
         }
     }
@@ -272,7 +266,6 @@ struct CaptureFlowView: View {
 
     private func reset() {
         shotsTaken = []
-        reviewImages = (nil, nil)
         uploadedStrip = nil
         errorMessage = nil
         phase = .idle

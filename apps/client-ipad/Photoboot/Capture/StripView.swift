@@ -154,17 +154,6 @@ enum StripRenderer {
         return (renderToData(v2x6), renderToData(v4x6))
     }
 
-    /// Same as `renderBoth` but returns UIImages for in-app display (skips
-    /// JPEG encoding). Used by the review preview before the user decides
-    /// to send.
-    static func renderBothImages(event: Event, photos: [UIImage]) -> (twoBySix: UIImage?, fourBySix: UIImage?) {
-        let bg2x6 = BackgroundCache.shared.image(for: event.backgroundPath2x6)
-        let bg4x6 = BackgroundCache.shared.image(for: event.backgroundPath4x6)
-        let v2x6 = StripView2x6(event: event, photos: photos, backgroundImage: bg2x6)
-        let v4x6 = StripView4x6(event: event, photos: photos, backgroundImage: bg4x6)
-        return (renderToImage(v2x6), renderToImage(v4x6))
-    }
-
     /// Renders a single format — used by CaptureFlowView for the instant
     /// preview shown on the detail screen before the upload finishes.
     static func render(event: Event, photos: [UIImage], format: StripFormat) -> Data? {
