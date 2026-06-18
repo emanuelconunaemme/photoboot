@@ -210,7 +210,6 @@ struct CaptureFlowView: View {
     private func startCountdownChain() {
         errorMessage = nil
         shotsTaken = []
-        reviewImages = (nil, nil)
         Task {
             for shotIndex in 1...shotsTotal {
                 phase = .counting
