@@ -10,13 +10,15 @@ struct StripView2x6: View {
 
     private let canvasWidth: CGFloat = 600
     private let canvasHeight: CGFloat = 1800
+    // 4:3 landscape — close enough to the 3:2 capture to crop only ~5% off
+    // each edge, keeps the photos prominent in the tall 2×6 strip.
     private let photoWidth: CGFloat = 552
-    private let photoHeight: CGFloat = 736   // 3:4 portrait
+    private let photoHeight: CGFloat = 414
 
     var body: some View {
         ZStack {
             background
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 ForEach(photos.prefix(2).indices, id: \.self) { i in
                     Image(uiImage: photos[i])
                         .resizable()
@@ -25,7 +27,7 @@ struct StripView2x6: View {
                         .clipped()
                         .clipShape(.rect(cornerRadius: 12))
                 }
-                Spacer(minLength: 12)
+                Spacer(minLength: 24)
                 VStack(spacing: 10) {
                     Text(event.effectiveStripTitle)
                         .font(.system(size: 56, weight: .heavy))
@@ -77,16 +79,16 @@ struct StripView4x6: View {
     private let canvasWidth: CGFloat = 1800
     private let canvasHeight: CGFloat = 1200
 
-    // Two portrait photos stacked vertically in the left half. Title +
-    // subtitle take the right half.
-    private let photoWidth: CGFloat = 420
-    private let photoHeight: CGFloat = 560   // 3:4 portrait
+    // 3:2 landscape cells — match the captures' 3:2 aspect exactly, no crop.
+    // Two stacked vertically in the left half.
+    private let photoWidth: CGFloat = 810
+    private let photoHeight: CGFloat = 540
 
     var body: some View {
         ZStack {
             background
             HStack(spacing: 0) {
-                VStack(spacing: 20) {
+                VStack(spacing: 30) {
                     ForEach(photos.prefix(2).indices, id: \.self) { i in
                         Image(uiImage: photos[i])
                             .resizable()
@@ -117,7 +119,7 @@ struct StripView4x6: View {
                 .padding(40)
                 .frame(width: canvasWidth / 2)
             }
-            .padding(24)
+            .padding(30)
         }
         .frame(width: canvasWidth, height: canvasHeight)
     }
