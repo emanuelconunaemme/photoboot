@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const AUTH_ROUTES = ["/login"];
-// Public routes — no auth required, no redirects either way. The `/p/[id]`
-// endpoint is the permanent shareable strip URL handed out via SMS/email.
-const PUBLIC_PREFIXES = ["/p/"];
+// Public routes — no auth required, no redirects either way:
+// - /p/[id]: permanent shareable strip URL handed out via SMS/email
+// - /terms, /privacy: required by Twilio toll-free SMS verification
+const PUBLIC_PREFIXES = ["/p/", "/terms", "/privacy"];
 
 export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);

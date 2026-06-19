@@ -6,6 +6,7 @@ struct DeliveryComposer: View {
     let onSent: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var settings = SettingsStore.shared
     @State private var recipient = ""
     @State private var isSending = false
     @State private var errorMessage: String?
@@ -33,6 +34,17 @@ struct DeliveryComposer: View {
                             .font(.callout)
                             .foregroundStyle(.red)
                             .multilineTextAlignment(.center)
+                    }
+
+                    if channel == .sms && settings.showSmsConsent {
+                        // Twilio toll-free verification language: identify the
+                        // sender, set frequency expectation, mention rates, and
+                        // give an opt-out method. Toggled by Settings.
+                        Text("By entering your number, you consent to one text from Blocktech Ventures with your photo link. Msg & data rates may apply. Reply STOP to cancel.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 4)
                     }
 
                     Button(action: send) {

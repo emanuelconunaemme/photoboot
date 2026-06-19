@@ -36,6 +36,14 @@ struct SettingsView: View {
                 } footer: {
                     Text("Seconds before the first shot, and between each pair of shots.")
                 }
+
+                Section {
+                    Toggle("Show SMS consent message", isOn: $settings.showSmsConsent)
+                } header: {
+                    Text("SMS")
+                } footer: {
+                    Text("Required language for Twilio toll-free verification. Keep on while sending to US numbers; turn off only if your sending number is already verified for transactional photo-delivery use.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
