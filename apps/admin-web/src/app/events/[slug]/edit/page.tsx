@@ -16,7 +16,7 @@ export default async function EditEventPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path, updated_at",
+      "id, name, slug, description, event_date, primary_color, secondary_color, background_2x6_path, background_4x6_path, updated_at",
     )
     .eq("slug", slug)
     .maybeSingle<
@@ -29,8 +29,6 @@ export default async function EditEventPage({
         | "event_date"
         | "primary_color"
         | "secondary_color"
-        | "strip_title"
-        | "strip_subtitle"
         | "background_2x6_path"
         | "background_4x6_path"
         | "updated_at"
@@ -54,8 +52,6 @@ export default async function EditEventPage({
     eventDate: event.event_date ?? "",
     primaryColor: event.primary_color,
     secondaryColor: event.secondary_color,
-    stripTitle: event.strip_title ?? "",
-    stripSubtitle: event.strip_subtitle ?? "",
     bg2x6Url,
     bg4x6Url,
   };

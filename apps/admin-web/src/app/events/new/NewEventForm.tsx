@@ -42,36 +42,18 @@ export function NewEventForm() {
         />
       </Field>
 
-      <Field label="Event date" hint="Used as the default subtitle if you leave it blank below.">
+      <Field label="Event date">
         <input name="event_date" type="date" className="text-input" />
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Primary color" hint="Strip title color">
+        <Field label="Primary color">
           <ColorInput name="primary_color" defaultValue="#E1306C" />
         </Field>
-        <Field label="Secondary color" hint="Strip subtitle color">
+        <Field label="Secondary color">
           <ColorInput name="secondary_color" defaultValue="#833AB4" />
         </Field>
       </div>
-
-      <Field label="Strip title" hint="Shown on every strip. Often the event name in shorter form.">
-        <input
-          name="strip_title"
-          type="text"
-          placeholder="Sam & Alex"
-          className="text-input"
-        />
-      </Field>
-
-      <Field label="Strip subtitle" hint="A date, a tagline, anything. Leave blank to skip.">
-        <input
-          name="strip_subtitle"
-          type="text"
-          placeholder="July 4, 2026"
-          className="text-input"
-        />
-      </Field>
 
       <hr className="border-zinc-200" />
 

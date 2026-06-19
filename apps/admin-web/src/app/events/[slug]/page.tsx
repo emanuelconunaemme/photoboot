@@ -25,7 +25,7 @@ export default async function EventPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, strip_title, strip_subtitle, background_2x6_path, background_4x6_path, updated_at",
+      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, background_2x6_path, background_4x6_path, updated_at",
     )
     .eq("slug", slug)
     .maybeSingle<
@@ -40,8 +40,6 @@ export default async function EventPage({
         | "event_date"
         | "primary_color"
         | "secondary_color"
-        | "strip_title"
-        | "strip_subtitle"
         | "background_2x6_path"
         | "background_4x6_path"
         | "updated_at"
@@ -177,22 +175,6 @@ export default async function EventPage({
               <p className="mt-3 max-w-xl text-sm text-zinc-600">
                 {event.description}
               </p>
-            ) : null}
-            {(event.strip_title || event.strip_subtitle) ? (
-              <div className="mt-3 inline-block rounded-md bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600">
-                <span className="text-zinc-400">Strip text: </span>
-                {event.strip_title ? (
-                  <span style={{ color: event.primary_color }} className="font-semibold">
-                    {event.strip_title}
-                  </span>
-                ) : null}
-                {event.strip_title && event.strip_subtitle ? <span> / </span> : null}
-                {event.strip_subtitle ? (
-                  <span style={{ color: event.secondary_color }}>
-                    {event.strip_subtitle}
-                  </span>
-                ) : null}
-              </div>
             ) : null}
           </div>
 

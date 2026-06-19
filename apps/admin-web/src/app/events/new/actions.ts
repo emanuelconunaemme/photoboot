@@ -16,8 +16,6 @@ export async function createEvent(
   const eventDate = String(formData.get("event_date") ?? "").trim();
   const primaryColor = String(formData.get("primary_color") ?? "#E1306C").trim();
   const secondaryColor = String(formData.get("secondary_color") ?? "#833AB4").trim();
-  const stripTitle = String(formData.get("strip_title") ?? "").trim();
-  const stripSubtitle = String(formData.get("strip_subtitle") ?? "").trim();
   const bg2x6 = formData.get("background_2x6") as File | null;
   const bg4x6 = formData.get("background_4x6") as File | null;
 
@@ -54,8 +52,6 @@ export async function createEvent(
       event_date: eventDate || null,
       primary_color: primaryColor,
       secondary_color: secondaryColor,
-      strip_title: stripTitle || null,
-      strip_subtitle: stripSubtitle || null,
       background_2x6_path: bg2x6Path,
       background_4x6_path: bg4x6Path,
     });

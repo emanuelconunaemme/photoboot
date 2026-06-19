@@ -27,24 +27,7 @@ struct StripView2x6: View {
                         .clipped()
                         .clipShape(.rect(cornerRadius: 12))
                 }
-                Spacer(minLength: 24)
-                VStack(spacing: 10) {
-                    Text(event.effectiveStripTitle)
-                        .font(.system(size: 56, weight: .heavy))
-                        .foregroundStyle(Color(hex: event.primaryColor))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
-                    if let subtitle = event.effectiveStripSubtitle {
-                        Text(subtitle)
-                            .font(.system(size: 32, weight: .semibold))
-                            .foregroundStyle(Color(hex: event.secondaryColor))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
-                    }
-                }
-                .frame(width: photoWidth)
+                Spacer(minLength: 0)
             }
             .padding(24)
         }
@@ -100,24 +83,10 @@ struct StripView4x6: View {
                 }
                 .frame(width: canvasWidth / 2)
 
-                VStack(spacing: 20) {
-                    Text(event.effectiveStripTitle)
-                        .font(.system(size: 84, weight: .heavy))
-                        .foregroundStyle(Color(hex: event.primaryColor))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.5)
-                    if let subtitle = event.effectiveStripSubtitle {
-                        Text(subtitle)
-                            .font(.system(size: 44, weight: .semibold))
-                            .foregroundStyle(Color(hex: event.secondaryColor))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.6)
-                    }
-                }
-                .padding(40)
-                .frame(width: canvasWidth / 2)
+                // Right half intentionally empty so the background image's
+                // own title / artwork / branding shows through.
+                Color.clear
+                    .frame(width: canvasWidth / 2)
             }
             .padding(30)
         }

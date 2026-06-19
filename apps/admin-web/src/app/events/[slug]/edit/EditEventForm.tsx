@@ -13,8 +13,6 @@ export interface EditInitialValues {
   eventDate: string;
   primaryColor: string;
   secondaryColor: string;
-  stripTitle: string;
-  stripSubtitle: string;
   bg2x6Url: string | null;
   bg4x6Url: string | null;
 }
@@ -74,24 +72,6 @@ export function EditEventForm({ initial }: { initial: EditInitialValues }) {
           <ColorInput name="secondary_color" defaultValue={initial.secondaryColor} />
         </Field>
       </div>
-
-      <Field label="Strip title">
-        <input
-          name="strip_title"
-          type="text"
-          defaultValue={initial.stripTitle}
-          className="text-input"
-        />
-      </Field>
-
-      <Field label="Strip subtitle">
-        <input
-          name="strip_subtitle"
-          type="text"
-          defaultValue={initial.stripSubtitle}
-          className="text-input"
-        />
-      </Field>
 
       <hr className="border-zinc-200" />
 
