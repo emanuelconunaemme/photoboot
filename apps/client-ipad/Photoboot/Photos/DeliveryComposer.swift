@@ -38,18 +38,27 @@ struct DeliveryComposer: View {
 
                     if channel == .sms && settings.showSmsConsent {
                         // Twilio toll-free verification language: identify the
-                        // sender, set frequency expectation, mention rates, and
-                        // give an opt-out method. Toggled by Settings.
-                        // fixedSize lets the text wrap to as many lines as it
-                        // needs instead of getting clipped to one line.
-                        Text("By entering your number, you consent to one text from Blocktech Ventures with your photo link. Msg & data rates may apply. Reply STOP to cancel.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(nil)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 4)
+                        // sender, set frequency expectation, mention rates,
+                        // give an opt-out method, link to Terms + Privacy.
+                        // Toggled by Settings.
+                        VStack(spacing: 10) {
+                            Text("By entering your number, you consent to one text from Blocktech Ventures with your photo link. Msg & data rates may apply. Reply STOP to cancel.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity)
+
+                            HStack(spacing: 14) {
+                                Link("Terms", destination: URL(string: "https://photoboot.mazzillie.com/terms")!)
+                                Text("·").foregroundStyle(.tertiary)
+                                Link("Privacy", destination: URL(string: "https://photoboot.mazzillie.com/privacy")!)
+                            }
+                            .font(.footnote.weight(.medium))
+                            .tint(Brand.pink)
+                        }
+                        .padding(.horizontal, 4)
                     }
 
                     Button(action: send) {
