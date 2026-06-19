@@ -13,76 +13,93 @@ struct DeliveryComposer: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
-                VStack(spacing: 24) {
-                    header
+            VStack(spacing: 0) {
+                // Scrollable content area — grows with consent text or
+                // long error messages without pushing the Send button off
+                // the bottom of the sheet.
+                ScrollView {
+                    VStack(spacing: 24) {
+                        header
 
-                    TextField(channel.inputPlaceholder, text: $recipient)
-                        .keyboardType(channel == .email ? .emailAddress : .phonePad)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .padding(16)
-                        .background(.background, in: .rect(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Brand.pink.opacity(0.4), lineWidth: 1.5)
-                        )
+                        TextField(channel.inputPlaceholder, text: $recipient)
+                            .keyboardType(channel == .email ? .emailAddress : .phonePad)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(16)
+                            .background(.background, in: .rect(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Brand.pink.opacity(0.4), lineWidth: 1.5)
+                            )
 
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.callout)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    if channel == .sms && settings.showSmsConsent {
-                        // Twilio toll-free verification language: identify the
-                        // sender, set frequency expectation, mention rates,
-                        // give an opt-out method, link to Terms + Privacy.
-                        // Toggled by Settings.
-                        VStack(spacing: 10) {
-                            Text("By entering your number, you consent to one text from Blocktech Ventures with your photo link. Msg & data rates may apply. Reply STOP to cancel.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.callout)
+                                .foregroundStyle(.red)
                                 .multilineTextAlignment(.center)
-                                .lineLimit(nil)
-                                .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity)
-
-                            HStack(spacing: 14) {
-                                Link("Terms", destination: URL(string: "https://photoboot.mazzillie.com/terms")!)
-                                Text("·").foregroundStyle(.tertiary)
-                                Link("Privacy", destination: URL(string: "https://photoboot.mazzillie.com/privacy")!)
-                            }
-                            .font(.footnote.weight(.medium))
-                            .tint(Brand.pink)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(.horizontal, 4)
-                    }
 
-                    Button(action: send) {
-                        HStack(spacing: 10) {
-                            if isSending {
-                                ProgressView().tint(.white)
-                            } else {
-                                Image(systemName: "paperplane.fill")
+                        if channel == .sms && settings.showSmsConsent {
+                            // Twilio toll-free verification language: identify
+                            // the sender, set frequency expectation, mention
+                            // rates, give an opt-out method, link to Terms +
+                            // Privacy. Toggled by Settings.
+                            VStack(spacing: 10) {
+                                Text("By entering your number, you consent to one text from Blocktech Ventures with your photo link. Msg & data rates may apply. Reply STOP to cancel.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity)
+
+                                HStack(spacing: 14) {
+                                    Link("Terms", destination: URL(string: "https://photoboot.mazzillie.com/terms")!)
+                                    Text("·").foregroundStyle(.tertiary)
+                                    Link("Privacy", destination: URL(string: "https://photoboot.mazzillie.com/privacy")!)
+                                }
+                                .font(.footnote.weight(.medium))
+                                .tint(Brand.pink)
                             }
-                            Text(isSending ? "Sending…" : "Send")
-                                .fontWeight(.semibold)
+                            .padding(.horizontal, 4)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Brand.gradient, in: .rect(cornerRadius: 14))
-                        .foregroundStyle(.white)
                     }
-                    .disabled(recipient.trimmingCharacters(in: .whitespaces).isEmpty || isSending)
-                    .opacity(recipient.trimmingCharacters(in: .whitespaces).isEmpty ? 0.55 : 1)
-
-                    Spacer()
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 24)
                 }
-                .padding(24)
+
+                // Sticky Send button area. Padding here is consistent whether
+                // or not the consent block is showing, so the button always
+                // sits the same distance from the bottom of the sheet.
+                Button(action: send) {
+                    HStack(spacing: 10) {
+                        if isSending {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                        }
+                        Text(isSending ? "Sending…" : "Send")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Brand.gradient, in: .rect(cornerRadius: 14))
+                    .foregroundStyle(.white)
+                }
+                .disabled(recipient.trimmingCharacters(in: .whitespaces).isEmpty || isSending)
+                .opacity(recipient.trimmingCharacters(in: .whitespaces).isEmpty ? 0.55 : 1)
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+                .background(.background)
+                .overlay(alignment: .top) {
+                    Divider().opacity(0.4)
+                }
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle(channel.displayTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
