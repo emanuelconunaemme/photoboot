@@ -40,10 +40,15 @@ struct DeliveryComposer: View {
                         // Twilio toll-free verification language: identify the
                         // sender, set frequency expectation, mention rates, and
                         // give an opt-out method. Toggled by Settings.
+                        // fixedSize lets the text wrap to as many lines as it
+                        // needs instead of getting clipped to one line.
                         Text("By entering your number, you consent to one text from Blocktech Ventures with your photo link. Msg & data rates may apply. Reply STOP to cancel.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity)
                             .padding(.horizontal, 4)
                     }
 
