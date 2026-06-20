@@ -128,6 +128,7 @@ struct DeliveryComposer: View {
     private func send() {
         errorMessage = nil
         let trimmed = recipient.trimmingCharacters(in: .whitespaces)
+        let normalized = channel == .sms ? normalizeUSPhone(trimmed) : trimmed
         isSending = true
         Task {
             defer { isSending = false }
@@ -135,13 +136,22 @@ struct DeliveryComposer: View {
                 try await StripService.shared.createDelivery(
                     strip: strip,
                     channel: channel,
-                    recipient: trimmed
+                    recipient: normalized
                 )
-                onSent("Queued for \(trimmed) 💌")
+                onSent(channel == .sms ? "Sending SMS… 💌" : "Sending email… 💌")
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
     }
+}
+
+// Defaults to US (+1) when the guest omits a country code — most events
+// are local. Anyone entering an international number must type the +.
+private func normalizeUSPhone(_ raw: String) -> String {
+    if raw.hasPrefix("+") {
+        return "+" + raw.dropFirst().filter(\.isNumber)
+    }
+    return "+1" + raw.filter(\.isNumber)
 }

@@ -15,6 +15,7 @@ struct StripDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var statusMessage: String?
     @State private var isPerforming = false
+    @State private var airDropPayload: AirDropPayload?
 
     init(
         strip: Strip,
@@ -45,6 +46,13 @@ struct StripDetailView: View {
                 showStatus(msg)
             }
             .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $airDropPayload) { payload in
+            AirDropSheet(fileURL: payload.url) { completed in
+                airDropPayload = nil
+                try? FileManager.default.removeItem(at: payload.url)
+                if completed { showStatus("Sent ✨") }
+            }
         }
         .alert("Delete this strip?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -99,6 +107,9 @@ struct StripDetailView: View {
             }
             actionButton(title: "SMS", icon: "message.fill", tint: Brand.orange) {
                 deliverySheet = .sms
+            }
+            actionButton(title: "AirDrop", icon: "square.and.arrow.up.fill", tint: Color.blue) {
+                prepareAirDrop()
             }
             actionButton(title: "Print", icon: "printer.fill", tint: Brand.purple) {
                 performPrint()
@@ -185,6 +196,19 @@ struct StripDetailView: View {
                     showStatus("Sent to printer ✨")
                 }
             }
+        }
+    }
+
+    private func prepareAirDrop() {
+        guard let image, let data = image.jpegData(compressionQuality: 0.92) else { return }
+        let shortId = strip.id.uuidString.prefix(8).lowercased()
+        let filename = "photoboot-\(settings.preferredFormat.rawValue)-\(shortId).jpg"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+        do {
+            try data.write(to: url, options: .atomic)
+            airDropPayload = AirDropPayload(url: url)
+        } catch {
+            showStatus("Couldn't prep file: \(error.localizedDescription)")
         }
     }
 

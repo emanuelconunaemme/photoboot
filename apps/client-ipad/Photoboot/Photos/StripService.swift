@@ -73,7 +73,7 @@ final class StripService {
         var displayTitle: String { self == .email ? "Send via email" : "Send via SMS" }
         var systemImage: String { self == .email ? "envelope.fill" : "message.fill" }
         var inputPlaceholder: String {
-            self == .email ? "name@example.com" : "+1 555 123 4567"
+            self == .email ? "name@example.com" : "408 123 4567"
         }
     }
 

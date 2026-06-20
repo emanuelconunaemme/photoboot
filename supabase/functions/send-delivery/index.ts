@@ -128,7 +128,7 @@ async function sendSms(to: string, eventName: string, url: string) {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
     throw new Error("Twilio not configured (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_FROM_NUMBER)");
   }
-  const body = `Your photo from ${eventName}: ${url}`;
+  const body = `Hey there! Thanks for stopping by the photo booth at ${eventName}. Here is the link: ${url} to grab your copy. Enjoy! Reply STOP to unsubscribe.`;
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
     {
