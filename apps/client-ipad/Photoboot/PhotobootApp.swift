@@ -41,12 +41,16 @@ private struct SignedInRoot: View {
                 NavigationStack {
                     EventHomeView(
                         event: currentEvent,
-                        autoOpenCapture: autoOpenCapture
-                    ) {
-                        EventsStore.clearRemembered()
-                        autoOpenCapture = false
-                        self.currentEvent = nil
-                    }
+                        autoOpenCapture: autoOpenCapture,
+                        onChangeEvent: {
+                            EventsStore.clearRemembered()
+                            autoOpenCapture = false
+                            self.currentEvent = nil
+                        },
+                        onEventEdited: { updated in
+                            self.currentEvent = updated
+                        }
+                    )
                 }
                 .id(currentEvent.id)
             } else {

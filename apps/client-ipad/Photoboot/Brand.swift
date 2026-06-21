@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Instagram-inspired brand palette + gradient. Use `Brand.gradient` on primary
 // CTAs and the capture button; everything else inherits the AccentColor (IG pink).
@@ -49,5 +50,17 @@ extension Color {
         let g = Double((value >> 8) & 0xFF) / 255
         let b = Double(value & 0xFF) / 255
         self.init(red: r, green: g, blue: b)
+    }
+
+    /// "#RRGGBB" string for the current sRGB representation. Matches the
+    /// admin form's hex inputs so a color round-trips cleanly.
+    var hexString: String {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard ui.getRed(&r, green: &g, blue: &b, alpha: &a) else { return "#000000" }
+        let R = max(0, min(255, Int((r * 255).rounded())))
+        let G = max(0, min(255, Int((g * 255).rounded())))
+        let B = max(0, min(255, Int((b * 255).rounded())))
+        return String(format: "#%02X%02X%02X", R, G, B)
     }
 }

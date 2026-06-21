@@ -4,10 +4,12 @@ struct EventHomeView: View {
     let event: Event
     var autoOpenCapture: Bool = false
     let onChangeEvent: () -> Void
+    let onEventEdited: (Event) -> Void
 
     @Environment(AuthStore.self) private var auth
     @State private var route: Route?
     @State private var showSettings = false
+    @State private var showEdit = false
     @State private var didAutoOpen = false
 
     enum Route: Hashable {
@@ -65,6 +67,9 @@ struct EventHomeView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button("Edit event", systemImage: "pencil") {
+                        showEdit = true
+                    }
                     Button("Settings", systemImage: "gearshape") {
                         showSettings = true
                     }
@@ -81,6 +86,9 @@ struct EventHomeView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showEdit) {
+            EventEditView(event: event, onSaved: onEventEdited)
         }
         .navigationDestination(item: $route) { route in
             switch route {
