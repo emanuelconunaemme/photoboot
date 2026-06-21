@@ -77,8 +77,14 @@ struct CaptureFlowView: View {
     private var backgroundView: some View {
         switch phase {
         case .idle, .counting:
+            // Frame the preview at the strip's 3:2 landscape aspect so the
+            // user only sees the region that will actually land in the
+            // composite. The portrait capture is wider than this slice, but
+            // every strip cell crops down to a horizontal band ≤ 3:2 — so
+            // whatever you can see here is guaranteed to be in both prints.
             CameraPreviewView(session: camera.session)
-                .ignoresSafeArea()
+                .aspectRatio(3.0 / 2.0, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .review, .uploading:
             reviewBackground
         }
