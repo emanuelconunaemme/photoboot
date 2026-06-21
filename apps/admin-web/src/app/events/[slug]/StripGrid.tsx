@@ -132,7 +132,7 @@ export function StripGrid({
         >
           {strips.map((strip) => {
             const url = format === "4x6" ? strip.url_4x6 : strip.url_2x6;
-            const aspect = format === "4x6" ? "aspect-[3/2]" : "aspect-[3/5]";
+            const aspect = format === "4x6" ? "aspect-[3/2]" : "aspect-[1/3]";
             return (
               <div key={strip.id} className="flex flex-col gap-1.5">
                 <button

@@ -221,6 +221,14 @@ export function StripDetail({
                 disabled={!imageUrl}
               />
               <ActionBtn
+                label="Open"
+                tint="from-sky-500 to-blue-600"
+                icon={<OpenIcon />}
+                onClick={() =>
+                  window.open(`/p/${stripId}`, "_blank", "noopener,noreferrer")
+                }
+              />
+              <ActionBtn
                 label="Download"
                 tint="from-emerald-500 to-teal-500"
                 icon={<DownloadIcon />}
@@ -403,6 +411,15 @@ function SmsIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <path d="M3.5 3A1.5 1.5 0 0 0 2 4.5v9A1.5 1.5 0 0 0 3.5 15h4l2.5 2.5L12.5 15h4a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 16.5 3h-13Z" />
+    </svg>
+  );
+}
+
+function OpenIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M11 3.75A.75.75 0 0 1 11.75 3h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V5.56l-5.97 5.97a.75.75 0 1 1-1.06-1.06L14.44 4.5h-2.69a.75.75 0 0 1-.75-.75Z" />
+      <path d="M4 6.75A1.75 1.75 0 0 1 5.75 5H9a.75.75 0 0 1 0 1.5H5.75a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25V11a.75.75 0 0 1 1.5 0v3.25A1.75 1.75 0 0 1 13.25 16h-7.5A1.75 1.75 0 0 1 4 14.25v-7.5Z" />
     </svg>
   );
 }
