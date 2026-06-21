@@ -16,6 +16,7 @@ final class SettingsStore {
         static let firstCountdown = "photoboot.settings.firstCountdown"
         static let nextCountdown = "photoboot.settings.nextCountdown"
         static let showSmsConsent = "photoboot.settings.showSmsConsent"
+        static let splashDelay = "photoboot.settings.splashDelay"
     }
 
     var preferredFormat: StripFormat {
@@ -32,6 +33,12 @@ final class SettingsStore {
 
     var showSmsConsent: Bool {
         didSet { defaults.set(showSmsConsent, forKey: Key.showSmsConsent) }
+    }
+
+    /// Seconds of inactivity on the camera screen before the splash takes
+    /// over. 0 disables it entirely.
+    var splashDelaySeconds: Int {
+        didSet { defaults.set(splashDelaySeconds, forKey: Key.splashDelay) }
     }
 
     private init() {
@@ -55,6 +62,15 @@ final class SettingsStore {
             self.showSmsConsent = defaults.bool(forKey: Key.showSmsConsent)
         } else {
             self.showSmsConsent = true
+        }
+
+        // 0 = disabled, so distinguish "never set" (default 10) from
+        // "explicitly 0" via object(forKey:) rather than relying on the
+        // integer-returns-0-for-missing-key behavior.
+        if defaults.object(forKey: Key.splashDelay) != nil {
+            self.splashDelaySeconds = defaults.integer(forKey: Key.splashDelay)
+        } else {
+            self.splashDelaySeconds = 60
         }
     }
 }

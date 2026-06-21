@@ -12,6 +12,8 @@ struct CaptureFlowView: View {
     @State private var shotsTaken: [Data] = []
     @State private var uploadedStrip: Strip?
     @State private var errorMessage: String?
+    @State private var showSplash = false
+    @State private var splashTask: Task<Void, Never>?
 
     private let shotsTotal = 2
 
@@ -51,16 +53,43 @@ struct CaptureFlowView: View {
                     Spacer()
                 }
             }
+
+            if showSplash {
+                SplashView(event: event)
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showSplash = false
+                        }
+                        scheduleSplash()
+                    }
+                    .zIndex(100)
+            }
         }
         .navigationTitle(event.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.black, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar(showSplash ? .hidden : .visible, for: .navigationBar)
         .task {
             do { try await camera.start() }
             catch { errorMessage = error.localizedDescription }
+            scheduleSplash()
         }
-        .onDisappear { camera.stop() }
+        .onDisappear {
+            camera.stop()
+            cancelSplash()
+        }
+        .onChange(of: phase) { _, newPhase in
+            if newPhase == .idle {
+                scheduleSplash()
+            } else {
+                cancelSplash()
+                if showSplash {
+                    withAnimation { showSplash = false }
+                }
+            }
+        }
         .fullScreenCover(item: $uploadedStrip, onDismiss: reset) { strip in
             NavigationStack {
                 StripDetailView(strip: strip, initialImageData: lastCompositePreviewData())
@@ -274,5 +303,26 @@ struct CaptureFlowView: View {
         uploadedStrip = nil
         errorMessage = nil
         phase = .idle
+    }
+
+    // MARK: - Idle splash
+
+    private func scheduleSplash() {
+        splashTask?.cancel()
+        let delay = settings.splashDelaySeconds
+        guard delay > 0, phase == .idle, !showSplash else { return }
+        splashTask = Task {
+            try? await Task.sleep(for: .seconds(delay))
+            if !Task.isCancelled, phase == .idle, !showSplash {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showSplash = true
+                }
+            }
+        }
+    }
+
+    private func cancelSplash() {
+        splashTask?.cancel()
+        splashTask = nil
     }
 }

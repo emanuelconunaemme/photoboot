@@ -44,6 +44,21 @@ struct SettingsView: View {
                 } footer: {
                     Text("Required language for Twilio toll-free verification. Keep on while sending to US numbers; turn off only if your sending number is already verified for transactional photo-delivery use.")
                 }
+
+                Section {
+                    Stepper(
+                        settings.splashDelaySeconds == 0
+                            ? "Splash screen: off"
+                            : "Splash after: \(settings.splashDelaySeconds)s",
+                        value: $settings.splashDelaySeconds,
+                        in: 0...60,
+                        step: 5
+                    )
+                } header: {
+                    Text("Splash screen")
+                } footer: {
+                    Text("Idle attractor that takes over the camera screen after this many seconds of inactivity. Shows the branded right half of the 4×6 template. Set to 0 to disable.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
