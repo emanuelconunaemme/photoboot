@@ -18,7 +18,10 @@ struct StripView2x6: View {
     var body: some View {
         ZStack {
             background
+            // Photos centered vertically — the background template carries
+            // its own header above and footer below the photo pair.
             VStack(spacing: 24) {
+                Spacer(minLength: 0)
                 ForEach(photos.prefix(2).indices, id: \.self) { i in
                     Image(uiImage: photos[i])
                         .resizable()
