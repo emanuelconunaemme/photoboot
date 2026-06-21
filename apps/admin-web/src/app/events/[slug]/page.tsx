@@ -216,7 +216,7 @@ export default async function EventPage({
               {initialStrips.length === 1 ? "strip" : "strips"}
             </span>
           </div>
-          <StripGrid eventId={event.id} initial={initialStrips} />
+          <StripGrid eventId={event.id} eventName={event.name} initial={initialStrips} />
         </section>
 
         <section className="mt-12">

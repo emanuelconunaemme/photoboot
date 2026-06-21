@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { StripFormat } from "@/lib/database";
+import { StripDetail } from "./StripDetail";
 
 export interface StripWithUrls {
   id: string;
@@ -17,13 +18,16 @@ const SIGNED_URL_TTL_SECONDS = 3600;
 
 export function StripGrid({
   eventId,
+  eventName,
   initial,
 }: {
   eventId: string;
+  eventName: string;
   initial: StripWithUrls[];
 }) {
   const [strips, setStrips] = useState<StripWithUrls[]>(initial);
   const [format, setFormat] = useState<StripFormat>("4x6");
+  const [activeStripId, setActiveStripId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -130,37 +134,98 @@ export function StripGrid({
             const url = format === "4x6" ? strip.url_4x6 : strip.url_2x6;
             const aspect = format === "4x6" ? "aspect-[3/2]" : "aspect-[3/5]";
             return (
-              <div
-                key={strip.id}
-                className={`ig-gradient ${aspect} rounded-2xl p-[2px] shadow-sm transition hover:shadow-md`}
-              >
-                <div className="h-full w-full overflow-hidden rounded-[14px] bg-zinc-200">
-                  {url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={url}
-                      alt=""
-                      className="h-full w-full object-cover transition hover:scale-[1.02]"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-400">
-                      {format === "4x6"
-                        ? strip.composite_4x6_path
-                          ? "Loading…"
-                          : "No 4×6"
-                        : strip.composite_2x6_path
-                          ? "Loading…"
-                          : "No 2×6"}
-                    </div>
-                  )}
-                </div>
+              <div key={strip.id} className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => url && setActiveStripId(strip.id)}
+                  disabled={!url}
+                  className={`ig-gradient ${aspect} rounded-2xl p-[2px] shadow-sm transition hover:shadow-md disabled:cursor-default`}
+                >
+                  <div className="h-full w-full overflow-hidden rounded-[14px] bg-zinc-200">
+                    {url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={url}
+                        alt=""
+                        className="h-full w-full object-cover transition hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-zinc-400">
+                        {format === "4x6"
+                          ? strip.composite_4x6_path
+                            ? "Loading…"
+                            : "No 4×6"
+                          : strip.composite_2x6_path
+                            ? "Loading…"
+                            : "No 2×6"}
+                      </div>
+                    )}
+                  </div>
+                </button>
+                <time
+                  dateTime={strip.created_at}
+                  title={new Date(strip.created_at).toLocaleString()}
+                  className="text-center text-xs text-zinc-500"
+                >
+                  {formatStripTimestamp(strip.created_at)}
+                </time>
               </div>
             );
           })}
         </div>
       )}
+
+      {activeStripId
+        ? (() => {
+            const strip = strips.find((s) => s.id === activeStripId);
+            if (!strip) return null;
+            const url = format === "4x6" ? strip.url_4x6 : strip.url_2x6;
+            return (
+              <StripDetail
+                key={strip.id}
+                open
+                onClose={() => setActiveStripId(null)}
+                onDeleted={(id) =>
+                  setStrips((prev) => prev.filter((s) => s.id !== id))
+                }
+                stripId={strip.id}
+                composite2x6Path={strip.composite_2x6_path}
+                composite4x6Path={strip.composite_4x6_path}
+                imageUrl={url}
+                format={format}
+                eventName={eventName}
+                createdAt={strip.created_at}
+              />
+            );
+          })()
+        : null}
     </>
   );
+}
+
+function formatStripTimestamp(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  if (sameDay) {
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  if (sameYear) {
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function FormatPill({
