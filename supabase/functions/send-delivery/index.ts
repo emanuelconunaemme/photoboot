@@ -17,6 +17,21 @@ interface DeliveryRow {
   attempts: number;
 }
 
+// Errors thrown from the send helpers carry a `retryable` flag so the
+// dispatcher knows whether to keep the row in `pending` (so the cron-
+// scheduled retry picks it up later) or mark it `failed` for good.
+class DeliveryError extends Error {
+  retryable: boolean;
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.retryable = retryable;
+  }
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
 interface StripRow {
   id: string;
   composite_2x6_path: string | null;
@@ -101,6 +116,7 @@ Deno.serve(async (req) => {
           status: "sent",
           sent_at: new Date().toISOString(),
           attempts: d.attempts + 1,
+          last_attempt_at: new Date().toISOString(),
           error: null,
         })
         .eq("id", d.id);
@@ -108,15 +124,21 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     } catch (sendErr) {
       const message = sendErr instanceof Error ? sendErr.message : String(sendErr);
+      // Default unknown errors (e.g. fetch network failures) to retryable —
+      // they're almost always transient. Only DeliveryErrors with explicit
+      // retryable=false flip the row to `failed`.
+      const retryable =
+        sendErr instanceof DeliveryError ? sendErr.retryable : true;
       await supabase
         .from("deliveries")
         .update({
-          status: "failed",
+          status: retryable ? "pending" : "failed",
           attempts: d.attempts + 1,
+          last_attempt_at: new Date().toISOString(),
           error: message,
         })
         .eq("id", d.id);
-      return json({ error: message }, 502);
+      return json({ error: message, retryable }, retryable ? 503 : 502);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -126,7 +148,10 @@ Deno.serve(async (req) => {
 
 async function sendSms(to: string, eventName: string, url: string) {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
-    throw new Error("Twilio not configured (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_FROM_NUMBER)");
+    throw new DeliveryError(
+      "Twilio not configured (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_FROM_NUMBER)",
+      false,
+    );
   }
   const body = `Hey there! Thanks for stopping by the photo booth at ${eventName}. Here is the link: ${url} to grab your copy. Enjoy! Reply STOP to unsubscribe.`;
   const res = await fetch(
@@ -142,7 +167,10 @@ async function sendSms(to: string, eventName: string, url: string) {
   );
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Twilio ${res.status}: ${text}`);
+    throw new DeliveryError(
+      `Twilio ${res.status}: ${text}`,
+      isRetryableStatus(res.status),
+    );
   }
 }
 
@@ -153,7 +181,10 @@ async function sendEmail(
   url: string,
 ) {
   if (!RESEND_API_KEY || !RESEND_FROM) {
-    throw new Error("Resend not configured (RESEND_API_KEY/RESEND_FROM_ADDRESS)");
+    throw new DeliveryError(
+      "Resend not configured (RESEND_API_KEY/RESEND_FROM_ADDRESS)",
+      false,
+    );
   }
   const safeName = escapeHtml(eventName);
   const dateLine = eventDate ? `<p style="color:#888;font-size:14px;margin:0 0 16px 0;">${escapeHtml(eventDate)}</p>` : "";
@@ -183,7 +214,10 @@ async function sendEmail(
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Resend ${res.status}: ${text}`);
+    throw new DeliveryError(
+      `Resend ${res.status}: ${text}`,
+      isRetryableStatus(res.status),
+    );
   }
 }
 
