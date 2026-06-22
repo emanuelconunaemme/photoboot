@@ -51,7 +51,15 @@ struct StripDetailView: View {
             AirDropSheet(fileURL: payload.url) { completed in
                 airDropPayload = nil
                 try? FileManager.default.removeItem(at: payload.url)
-                if completed { showStatus("Sent ✨") }
+                if completed {
+                    showStatus("Sent ✨")
+                    Task {
+                        await StripService.shared.logLocalAction(
+                            strip: strip,
+                            action: .airdrop
+                        )
+                    }
+                }
             }
         }
         .alert("Delete this strip?", isPresented: $showDeleteConfirm) {
@@ -194,6 +202,7 @@ struct StripDetailView: View {
                     showStatus("Print failed: \(error.localizedDescription)")
                 } else if completed {
                     showStatus("Sent to printer ✨")
+                    await StripService.shared.logLocalAction(strip: strip, action: .print)
                 }
             }
         }

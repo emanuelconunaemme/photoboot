@@ -93,6 +93,14 @@ export function StripDetail({
     );
     w.document.close();
     flashStatus("Sent to printer 🖨️");
+    // Best-effort stats log — don't block the user on a failure here.
+    const supabase = createClient();
+    void supabase.from("deliveries").insert({
+      strip_id: stripId,
+      channel: "print",
+      status: "sent",
+      sent_at: new Date().toISOString(),
+    });
   }
 
   async function handleSendDelivery(channel: "sms" | "email") {

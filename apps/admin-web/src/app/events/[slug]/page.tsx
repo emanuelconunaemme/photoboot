@@ -118,6 +118,32 @@ export default async function EventPage({
     signed_url: photoUrlByPath.get(p.storage_path) ?? null,
   }));
 
+  // Stats: counts derive cheaply from existing tables. Deliveries don't
+  // carry event_id directly — join through strips with the !inner hint.
+  // Single fetch covers all channels; we tally in JS.
+  const [photoCount, stripCount, deliveryRows] = await Promise.all([
+    supabase
+      .from("photos")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    supabase
+      .from("strips")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    supabase
+      .from("deliveries")
+      .select("channel, status, strips!inner(event_id)")
+      .eq("strips.event_id", event.id),
+  ]);
+
+  const photosTaken = photoCount.count ?? 0;
+  const stripsCreated = stripCount.count ?? 0;
+  const all = deliveryRows.data ?? [];
+  const smsStats = tallyDeliveries(all.filter((r) => r.channel === "sms"));
+  const emailStats = tallyDeliveries(all.filter((r) => r.channel === "email"));
+  const printCount = all.filter((r) => r.channel === "print").length;
+  const airdropCount = all.filter((r) => r.channel === "airdrop").length;
+
   // Background image public URLs (templates bucket is public-read).
   // Append updated_at as a cache-buster: same path = same URL, so the
   // browser would otherwise hold the old image forever after an edit.
@@ -209,6 +235,20 @@ export default async function EventPage({
         ) : null}
 
         <section className="mt-10">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            Stats
+          </h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <NumberStat label="Photos taken" value={photosTaken} />
+            <NumberStat label="Strips created" value={stripsCreated} />
+            <NumberStat label="Prints" value={printCount} />
+            <NumberStat label="AirDrops" value={airdropCount} />
+            <DeliveryStat label="SMS" stats={smsStats} />
+            <DeliveryStat label="Email" stats={emailStats} />
+          </div>
+        </section>
+
+        <section className="mt-10">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xl font-semibold tracking-tight">Strips</h2>
             <span className="text-xs text-zinc-500">
@@ -252,6 +292,79 @@ function ColorSwatch({ label, hex }: { label: string; hex: string }) {
       <span className="text-xs text-zinc-600">
         <span className="text-zinc-400">{label}</span>{" "}
         <span className="font-mono">{hex}</span>
+      </span>
+    </div>
+  );
+}
+
+interface DeliveryTally {
+  sent: number;
+  failed: number;
+  pending: number;
+}
+
+function tallyDeliveries(rows: { status: string }[] | null): DeliveryTally {
+  const r: DeliveryTally = { sent: 0, failed: 0, pending: 0 };
+  for (const row of rows ?? []) {
+    if (row.status === "sent") r.sent++;
+    else if (row.status === "failed") r.failed++;
+    else if (row.status === "pending") r.pending++;
+  }
+  return r;
+}
+
+function NumberStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="ig-gradient-text mt-2 text-3xl font-bold tracking-tight">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function DeliveryStat({
+  label,
+  stats,
+}: {
+  label: string;
+  stats: DeliveryTally;
+}) {
+  const total = stats.sent + stats.failed + stats.pending;
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+      <div className="flex items-baseline justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {label}
+        </p>
+        <p className="text-xs font-mono text-zinc-400">{total}</p>
+      </div>
+      <div className="mt-2 space-y-1 text-sm">
+        <StatusRow color="text-emerald-600" label="sent" value={stats.sent} />
+        <StatusRow color="text-amber-600" label="pending" value={stats.pending} />
+        <StatusRow color="text-rose-600" label="failed" value={stats.failed} />
+      </div>
+    </div>
+  );
+}
+
+function StatusRow({
+  color,
+  label,
+  value,
+}: {
+  color: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className={`text-xs font-medium ${color}`}>{label}</span>
+      <span className="font-mono text-sm font-semibold tabular-nums text-zinc-800">
+        {value}
       </span>
     </div>
   );

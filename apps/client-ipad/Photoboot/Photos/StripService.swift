@@ -67,6 +67,38 @@ final class StripService {
         log.info("queued \(channel.rawValue) for strip \(strip.id.uuidString)")
     }
 
+    /// Records a local-only action (print/airdrop) that happened on-device.
+    /// Inserted as status='sent' so the dispatcher trigger doesn't try to
+    /// re-process it through Twilio/Resend — the action's already done.
+    func logLocalAction(
+        strip: Strip,
+        action: LocalAction
+    ) async {
+        struct NewAction: Encodable {
+            let strip_id: UUID
+            let channel: String
+            let status: String
+            let sent_at: String
+        }
+        do {
+            let now = ISO8601DateFormatter().string(from: Date())
+            try await SupabaseService.shared.client
+                .from("deliveries")
+                .insert(NewAction(
+                    strip_id: strip.id,
+                    channel: action.rawValue,
+                    status: "sent",
+                    sent_at: now
+                ))
+                .execute()
+            log.info("logged \(action.rawValue) for strip \(strip.id.uuidString)")
+        } catch {
+            // Stats are best-effort — never block the user's print/airdrop on
+            // a network hiccup. Worst case the event-stats undercount.
+            log.error("logLocalAction(\(action.rawValue)) failed: \(error.localizedDescription)")
+        }
+    }
+
     enum DeliveryChannel: String, Identifiable, CaseIterable {
         case email, sms
         var id: String { rawValue }
@@ -75,6 +107,11 @@ final class StripService {
         var inputPlaceholder: String {
             self == .email ? "name@example.com" : "408 123 4567"
         }
+    }
+
+    enum LocalAction: String {
+        case print
+        case airdrop
     }
 
     enum StripServiceError: LocalizedError {
