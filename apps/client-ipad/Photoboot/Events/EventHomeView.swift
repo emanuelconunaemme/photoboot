@@ -64,6 +64,11 @@ struct EventHomeView: View {
             // network per shot.
             await BackgroundCache.shared.preload(for: event)
         }
+        .task {
+            // Warm autocomplete suggestions for the DeliveryComposer so the
+            // first composer open is instant.
+            await RecipientStore.shared.load(for: event)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {

@@ -7,9 +7,18 @@ struct DeliveryComposer: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var settings = SettingsStore.shared
+    @State private var recipients = RecipientStore.shared
     @State private var recipient = ""
     @State private var isSending = false
     @State private var errorMessage: String?
+
+    private var suggestions: [RecipientSuggestion] {
+        recipients.suggestions(
+            for: strip.eventId,
+            channel: channel,
+            prefix: recipient
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,6 +40,12 @@ struct DeliveryComposer: View {
                                 RoundedRectangle(cornerRadius: 14)
                                     .stroke(Brand.pink.opacity(0.4), lineWidth: 1.5)
                             )
+
+                        if !suggestions.isEmpty {
+                            SuggestionList(items: suggestions) { picked in
+                                recipient = picked.value
+                            }
+                        }
 
                         if let errorMessage {
                             Text(errorMessage)
@@ -138,12 +153,63 @@ struct DeliveryComposer: View {
                     channel: channel,
                     recipient: normalized
                 )
+                // Save to contacts in the background so future events
+                // (and this one's autocomplete) see the recipient. Fire
+                // and forget — never blocks the user's send.
+                Task {
+                    await RecipientStore.shared.recordManual(
+                        value: normalized,
+                        eventId: strip.eventId,
+                        channel: channel
+                    )
+                }
                 onSent(channel == .sms ? "Sending SMS… 💌" : "Sending email… 💌")
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+}
+
+/// Suggestion picker shown under the recipient field. Tap a row to fill.
+private struct SuggestionList: View {
+    let items: [RecipientSuggestion]
+    let onPick: (RecipientSuggestion) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                Button { onPick(item) } label: {
+                    HStack(spacing: 10) {
+                        Text(item.value)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        Text(item.origin.label)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(.secondary.opacity(0.12), in: .capsule)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if index < items.count - 1 {
+                    Divider().padding(.leading, 16)
+                }
+            }
+        }
+        .background(.background, in: .rect(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
     }
 }
 
