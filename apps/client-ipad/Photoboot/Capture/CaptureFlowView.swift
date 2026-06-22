@@ -76,6 +76,13 @@ struct CaptureFlowView: View {
             catch { errorMessage = error.localizedDescription }
             scheduleSplash()
         }
+        // Belt-and-suspenders: also kick off background preload here so the
+        // splash + compositor have their assets even when CaptureFlowView is
+        // entered before EventHomeView's preload finishes (e.g. auto-open
+        // path on cold launch). Idempotent — the cache no-ops if loaded.
+        .task {
+            await BackgroundCache.shared.preload(for: event)
+        }
         .onDisappear {
             camera.stop()
             cancelSplash()
