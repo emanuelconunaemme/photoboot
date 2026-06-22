@@ -4,6 +4,10 @@ import UIKit
 struct StripDetailView: View {
     let strip: Strip
     let initialImageData: Data?
+    /// When true, the view auto-dismisses after the configured idle
+    /// timeout to return the kiosk to the camera. Capture flow sets this
+    /// to true; gallery browsing leaves it false.
+    let autoDismissOnInactivity: Bool
     let onDelete: (Strip) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -16,15 +20,25 @@ struct StripDetailView: View {
     @State private var statusMessage: String?
     @State private var isPerforming = false
     @State private var airDropPayload: AirDropPayload?
+    @State private var idleTask: Task<Void, Never>?
 
     init(
         strip: Strip,
         initialImageData: Data? = nil,
+        autoDismissOnInactivity: Bool = false,
         onDelete: @escaping (Strip) -> Void = { _ in }
     ) {
         self.strip = strip
         self.initialImageData = initialImageData
+        self.autoDismissOnInactivity = autoDismissOnInactivity
         self.onDelete = onDelete
+    }
+
+    /// True whenever a sheet/alert is in front of the detail view. The
+    /// idle timer pauses while this is true so the user isn't kicked out
+    /// mid-compose.
+    private var anySheetOpen: Bool {
+        deliverySheet != nil || airDropPayload != nil || showDeleteConfirm
     }
 
     var body: some View {
@@ -40,6 +54,18 @@ struct StripDetailView: View {
             image = nil
             imageLoadError = nil
             Task { await loadImage() }
+        }
+        .onAppear { kickIdleTimer() }
+        .onDisappear { cancelIdleTimer() }
+        // Any tap on the view counts as engagement — simultaneousGesture
+        // so it doesn't steal touches from the action buttons.
+        .simultaneousGesture(
+            TapGesture().onEnded { kickIdleTimer() }
+        )
+        // Sheet transitions are explicit user interactions. While a sheet
+        // is open we pause the timer entirely; on close we re-arm.
+        .onChange(of: anySheetOpen) { _, isOpen in
+            if isOpen { cancelIdleTimer() } else { kickIdleTimer() }
         }
         .sheet(item: $deliverySheet) { channel in
             DeliveryComposer(strip: strip, channel: channel) { msg in
@@ -193,11 +219,17 @@ struct StripDetailView: View {
         info.outputType = .photo
         info.jobName = "Photoboot \(settings.preferredFormat.rawValue) — \(strip.id.uuidString.prefix(8))"
 
+        // UIPrintInteractionController lives outside SwiftUI; pause the
+        // idle timer while it's up so the user isn't kicked back to the
+        // camera in the middle of choosing a printer.
+        cancelIdleTimer()
+
         let controller = UIPrintInteractionController.shared
         controller.printInfo = info
         controller.printingItem = image
         controller.present(animated: true) { _, completed, error in
             Task { @MainActor in
+                kickIdleTimer()
                 if let error {
                     showStatus("Print failed: \(error.localizedDescription)")
                 } else if completed {
@@ -241,6 +273,26 @@ struct StripDetailView: View {
                 statusMessage = nil
             }
         }
+    }
+
+    // MARK: - Idle auto-dismiss
+
+    private func kickIdleTimer() {
+        guard autoDismissOnInactivity, !anySheetOpen else { return }
+        let seconds = settings.returnToCameraSeconds
+        guard seconds > 0 else { return }
+        idleTask?.cancel()
+        idleTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds))
+            if !Task.isCancelled, !anySheetOpen {
+                dismiss()
+            }
+        }
+    }
+
+    private func cancelIdleTimer() {
+        idleTask?.cancel()
+        idleTask = nil
     }
 }
 

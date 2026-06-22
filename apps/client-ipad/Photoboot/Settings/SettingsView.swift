@@ -59,6 +59,21 @@ struct SettingsView: View {
                 } footer: {
                     Text("Idle attractor that takes over the camera screen after this many seconds of inactivity. Shows the branded right half of the 4×6 template. Set to 0 to disable.")
                 }
+
+                Section {
+                    Stepper(
+                        settings.returnToCameraSeconds == 0
+                            ? "Return to camera: off"
+                            : "Return to camera after: \(settings.returnToCameraSeconds)s",
+                        value: $settings.returnToCameraSeconds,
+                        in: 0...300,
+                        step: 15
+                    )
+                } header: {
+                    Text("Post-capture auto-return")
+                } footer: {
+                    Text("After a fresh capture, the strip detail screen auto-closes back to the camera after this many seconds of inactivity. Sheets (Email, SMS, AirDrop, Print) pause the timer. Gallery browsing is exempt. Set to 0 to disable.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

@@ -17,6 +17,7 @@ final class SettingsStore {
         static let nextCountdown = "photoboot.settings.nextCountdown"
         static let showSmsConsent = "photoboot.settings.showSmsConsent"
         static let splashDelay = "photoboot.settings.splashDelay"
+        static let returnToCamera = "photoboot.settings.returnToCamera"
     }
 
     var preferredFormat: StripFormat {
@@ -39,6 +40,13 @@ final class SettingsStore {
     /// over. 0 disables it entirely.
     var splashDelaySeconds: Int {
         didSet { defaults.set(splashDelaySeconds, forKey: Key.splashDelay) }
+    }
+
+    /// Seconds of inactivity on the post-capture strip detail screen
+    /// before the kiosk auto-returns to the camera. 0 disables it.
+    /// Only applies after a fresh capture — gallery browsing is exempt.
+    var returnToCameraSeconds: Int {
+        didSet { defaults.set(returnToCameraSeconds, forKey: Key.returnToCamera) }
     }
 
     private init() {
@@ -71,6 +79,12 @@ final class SettingsStore {
             self.splashDelaySeconds = defaults.integer(forKey: Key.splashDelay)
         } else {
             self.splashDelaySeconds = 60
+        }
+
+        if defaults.object(forKey: Key.returnToCamera) != nil {
+            self.returnToCameraSeconds = defaults.integer(forKey: Key.returnToCamera)
+        } else {
+            self.returnToCameraSeconds = 60
         }
     }
 }

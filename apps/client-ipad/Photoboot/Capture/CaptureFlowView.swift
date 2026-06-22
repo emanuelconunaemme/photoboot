@@ -99,7 +99,11 @@ struct CaptureFlowView: View {
         }
         .fullScreenCover(item: $uploadedStrip, onDismiss: reset) { strip in
             NavigationStack {
-                StripDetailView(strip: strip, initialImageData: lastCompositePreviewData())
+                StripDetailView(
+                    strip: strip,
+                    initialImageData: lastCompositePreviewData(),
+                    autoDismissOnInactivity: true
+                )
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button("Done") { uploadedStrip = nil }
