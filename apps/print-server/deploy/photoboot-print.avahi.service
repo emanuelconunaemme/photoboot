@@ -1,0 +1,12 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">Photoboot Print Server on %h</name>
+  <service>
+    <type>_photoboot-print._tcp</type>
+    <port>8787</port>
+    <txt-record>version=0.1.0</txt-record>
+    <txt-record>path=/print</txt-record>
+    <txt-record>health=/health</txt-record>
+  </service>
+</service-group>

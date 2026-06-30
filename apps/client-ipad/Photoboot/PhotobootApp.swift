@@ -4,6 +4,12 @@ import SwiftUI
 struct PhotobootApp: App {
     @State private var auth = AuthStore()
 
+    init() {
+        // Start LAN discovery for the print server. Singleton, runs for the
+        // life of the app; settings shows live state.
+        Task { @MainActor in PrintService.shared.start() }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

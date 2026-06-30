@@ -1,0 +1,22 @@
+[Unit]
+Description=Photoboot print server (FastAPI over CUPS)
+Documentation=https://github.com/emazzilli/photoboot
+After=network-online.target cups.service avahi-daemon.service
+Wants=network-online.target cups.service avahi-daemon.service
+
+[Service]
+Type=simple
+User=photoboot
+Group=lp
+WorkingDirectory=/opt/photoboot-print
+ExecStart=/opt/photoboot-print/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8787 --log-level info
+Restart=on-failure
+RestartSec=3
+# CUPS auth happens via the local socket; PID/UID identity is enough.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

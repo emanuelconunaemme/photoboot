@@ -12,6 +12,7 @@ struct StripDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var settings = SettingsStore.shared
+    @State private var printService = PrintService.shared
 
     @State private var image: UIImage?
     @State private var imageLoadError: String?
@@ -145,8 +146,10 @@ struct StripDetailView: View {
             actionButton(title: "AirDrop", icon: "square.and.arrow.up.fill", tint: Color.blue) {
                 prepareAirDrop()
             }
-            actionButton(title: "Print", icon: "printer.fill", tint: Brand.purple) {
-                performPrint()
+            if printService.state.isOnline {
+                actionButton(title: "Print", icon: "printer.fill", tint: Brand.purple) {
+                    Task { await performPrint() }
+                }
             }
             actionButton(title: "Delete", icon: "trash.fill", tint: Color(.systemGray)) {
                 showDeleteConfirm = true
@@ -213,30 +216,19 @@ struct StripDetailView: View {
 
     // MARK: - Actions
 
-    private func performPrint() {
+    private func performPrint() async {
         guard let image else { return }
-        let info = UIPrintInfo.printInfo()
-        info.outputType = .photo
-        info.jobName = "Photoboot \(settings.preferredFormat.rawValue) — \(strip.id.uuidString.prefix(8))"
-
-        // UIPrintInteractionController lives outside SwiftUI; pause the
-        // idle timer while it's up so the user isn't kicked back to the
-        // camera in the middle of choosing a printer.
-        cancelIdleTimer()
-
-        let controller = UIPrintInteractionController.shared
-        controller.printInfo = info
-        controller.printingItem = image
-        controller.present(animated: true) { _, completed, error in
-            Task { @MainActor in
-                kickIdleTimer()
-                if let error {
-                    showStatus("Print failed: \(error.localizedDescription)")
-                } else if completed {
-                    showStatus("Sent to printer ✨")
-                    await StripService.shared.logLocalAction(strip: strip, action: .print)
-                }
-            }
+        isPerforming = true
+        defer { isPerforming = false }
+        do {
+            let receipt = try await PrintService.shared.submit(
+                image: image,
+                format: settings.preferredFormat
+            )
+            showStatus("Sent to printer ✨ (job \(receipt.job_id))")
+            await StripService.shared.logLocalAction(strip: strip, action: .print)
+        } catch {
+            showStatus("Print failed: \(error.localizedDescription)")
         }
     }
 

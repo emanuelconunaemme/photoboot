@@ -134,3 +134,33 @@ ipad:  ## Regenerate Xcode project from project.yml
 .PHONY: ipad-open
 ipad-open: ipad  ## Regenerate Xcode project and open it
 	open apps/client-ipad/Photoboot.xcodeproj
+
+# ──────────────────── print-server ────────────────────
+# Deploys apps/print-server to an Ubuntu box with a DNP DS-RX1HS attached.
+# Bootstrap is idempotent: re-run after edits to upgrade the venv + reload systemd.
+# Usage:  make deploy-print-server HOST=emanuel-server-0
+
+PRINT_SERVER_HOST ?= $(HOST)
+PRINT_SERVER_DIR  := /opt/photoboot-print
+
+.PHONY: deploy-print-server
+deploy-print-server:  ## Deploy print server to HOST=<ssh-host>
+	@[ -n "$(PRINT_SERVER_HOST)" ] || (echo "Usage: make deploy-print-server HOST=<ssh-host>" && exit 1)
+	@echo "→ claiming $(PRINT_SERVER_DIR) for rsync (bootstrap chowns back to 'photoboot')"
+	ssh -t $(PRINT_SERVER_HOST) "sudo install -d -o $$USER -g $$USER $(PRINT_SERVER_DIR) && sudo chown -R $$USER:$$USER $(PRINT_SERVER_DIR)"
+	@echo "→ rsync apps/print-server → $(PRINT_SERVER_HOST):$(PRINT_SERVER_DIR)"
+	rsync -avz --delete \
+		--exclude '__pycache__' --exclude '.venv' --exclude '*.pyc' \
+		apps/print-server/ $(PRINT_SERVER_HOST):$(PRINT_SERVER_DIR)/
+	@echo "→ running bootstrap on $(PRINT_SERVER_HOST) (will prompt for sudo)"
+	ssh -t $(PRINT_SERVER_HOST) "sudo bash $(PRINT_SERVER_DIR)/deploy/bootstrap.sh"
+
+.PHONY: print-server-status
+print-server-status:  ## Probe print server health (HOST=<ssh-host>)
+	@[ -n "$(PRINT_SERVER_HOST)" ] || (echo "Usage: make print-server-status HOST=<ssh-host>" && exit 1)
+	ssh $(PRINT_SERVER_HOST) "systemctl is-active photoboot-print.service; curl -s http://localhost:8787/health"
+
+.PHONY: print-server-logs
+print-server-logs:  ## Tail print server logs (HOST=<ssh-host>)
+	@[ -n "$(PRINT_SERVER_HOST)" ] || (echo "Usage: make print-server-logs HOST=<ssh-host>" && exit 1)
+	ssh -t $(PRINT_SERVER_HOST) "sudo journalctl -u photoboot-print.service -f -n 100"

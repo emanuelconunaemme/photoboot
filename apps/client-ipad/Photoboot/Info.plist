@@ -37,15 +37,14 @@
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_ipp._tcp</string>
-		<string>_ipps._tcp</string>
+		<string>_photoboot-print._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Photoboot needs the camera to capture guest photos at the event.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Photoboot uses Contacts to autocomplete phone numbers when guests opt in to receive their photo by SMS.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Photoboot discovers AirPrint-compatible printers on the local network.</string>
+	<string>Photoboot discovers the on-site print server on the local network.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Photoboot saves a copy of each captured photo to your Photos library as a backup.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
