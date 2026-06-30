@@ -147,9 +147,15 @@ struct SettingsView: View {
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(.green)
         case .notReady(let reason):
-            Label(reason, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .multilineTextAlignment(.trailing)
+            VStack(alignment: .trailing, spacing: 2) {
+                Label("Not ready", systemImage: "exclamationmark.triangle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(.orange)
+                Text(reason)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+            }
         }
     }
 }

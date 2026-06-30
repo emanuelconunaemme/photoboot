@@ -11,6 +11,8 @@ struct EventHomeView: View {
     @State private var showSettings = false
     @State private var showEdit = false
     @State private var didAutoOpen = false
+    @State private var settings = SettingsStore.shared
+    @State private var backgrounds = BackgroundCache.shared
 
     enum Route: Hashable {
         case capture
@@ -38,6 +40,8 @@ struct EventHomeView: View {
                         style: .outlined,
                         action: { route = .gallery }
                     )
+
+                    templatePreview
                 }
                 .padding(.horizontal, 24)
 
@@ -100,6 +104,28 @@ struct EventHomeView: View {
             case .capture: CaptureFlowView(event: event)
             case .gallery: GalleryView(event: event)
             }
+        }
+    }
+
+    /// Preview of the background template for the currently-selected
+    /// print format. Pulls from BackgroundCache so it appears instantly
+    /// once preload finishes (and refreshes after an admin edit).
+    @ViewBuilder
+    private var templatePreview: some View {
+        let format = settings.preferredFormat
+        let path = event.backgroundPath(for: format)
+        if let path, let image = backgrounds.image(for: path) {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 380)
+                .clipShape(.rect(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(.black.opacity(0.08), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.08), radius: 12, y: 5)
+                .padding(.top, 4)
         }
     }
 
