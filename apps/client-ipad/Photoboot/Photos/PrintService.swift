@@ -4,40 +4,61 @@ import Observation
 import UIKit
 import os
 
-/// LAN-discovered print server. Browses for `_photoboot-print._tcp`, polls
-/// the discovered server's `/health` on a slow timer, and exposes a single
-/// async `submit` that POSTs a strip JPEG.
+/// LAN-discovered print server client. Browses Bonjour for
+/// `_photoboot-print._tcp`, polls `/health` on a slow timer, and exposes a
+/// single async `submit` that POSTs a strip JPEG.
 ///
-/// The UI hides the Print button whenever `state` is not `.online`. The
-/// settings screen surfaces the raw state for debugging.
+/// Server reachability and printer readiness are tracked independently so
+/// the Settings screen can show "server is up, printer is out of paper"
+/// instead of conflating the two into a single "offline" state. The Print
+/// button itself isn't gated by either — it's gated only by the user's
+/// `printingEnabled` setting; submit() handles the failure modes.
 @MainActor
 @Observable
 final class PrintService {
     static let shared = PrintService()
 
-    enum State: Equatable {
+    /// Can we reach the LAN print server at all? Independent from whether
+    /// the printer itself is ready to take a job. Driven by the combined
+    /// signal of Bonjour discovery + last health probe outcome.
+    enum ServerState: Equatable {
         case searching
-        case online(host: String, port: Int)
-        case offline(reason: String)
+        case reachable(host: String, port: Int)
+        case unreachable(reason: String)
 
-        var isOnline: Bool {
-            if case .online = self { return true }
+        var isReachable: Bool {
+            if case .reachable = self { return true }
+            return false
+        }
+    }
+
+    /// Can the printer take a job right now? Reported by /health based on
+    /// CUPS's `printer-state-reasons` and accepting-jobs flag.
+    enum PrinterState: Equatable {
+        case unknown
+        case ready
+        case notReady(reason: String)
+
+        var isReady: Bool {
+            if case .ready = self { return true }
             return false
         }
     }
 
     enum SubmitError: Error, LocalizedError {
-        case notOnline
+        case serverUnreachable(reason: String)
         case encodeFailed
+        case printerNotReady(reason: String)
         case http(status: Int, body: String)
         case transport(Error)
 
         var errorDescription: String? {
             switch self {
-            case .notOnline:          return "Print server is offline."
-            case .encodeFailed:       return "Couldn't encode the strip for upload."
-            case .http(let s, let b): return "Server returned \(s): \(b)"
-            case .transport(let e):   return e.localizedDescription
+            case .serverUnreachable(let r): return "Print server unreachable: \(r)"
+            case .encodeFailed:             return "Couldn't encode the strip for upload."
+            case .printerNotReady(let r):   return r
+            case .http(let s, let b):       return "Server returned \(s): \(b)"
+            case .transport(let e):         return e.localizedDescription
             }
         }
     }
@@ -47,8 +68,14 @@ final class PrintService {
         let queue: String
     }
 
-    private(set) var state: State = .searching
+    private(set) var serverState: ServerState = .searching
+    private(set) var printerState: PrinterState = .unknown
     private(set) var lastHealthAt: Date?
+
+    /// Endpoint we last discovered via Bonjour. Persists across transient
+    /// network failures so /health and submit can keep retrying without
+    /// waiting for the browser to re-announce the service.
+    private var endpoint: (host: String, port: Int)?
 
     private let log = Logger(subsystem: "com.mazzillie.photoboot", category: "print-service")
     private var browser: NWBrowser?
@@ -79,7 +106,8 @@ final class PrintService {
                 switch s {
                 case .failed(let err):
                     self.log.error("browser failed: \(err.localizedDescription, privacy: .public)")
-                    self.state = .offline(reason: "Discovery failed: \(err.localizedDescription)")
+                    self.serverState = .unreachable(reason: "Discovery failed: \(err.localizedDescription)")
+                    self.printerState = .unknown
                     self.restartAfterDelay()
                 case .cancelled:
                     self.log.info("browser cancelled")
@@ -96,7 +124,7 @@ final class PrintService {
         browser = b
         b.start(queue: .main)
 
-        // Start the health loop. It tolerates "no endpoint yet" by sleeping.
+        // Health loop. Each tick is a no-op when we have no endpoint yet.
         healthTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.tickHealth()
@@ -110,7 +138,9 @@ final class PrintService {
         browser = nil
         healthTask?.cancel()
         healthTask = nil
-        state = .searching
+        serverState = .searching
+        printerState = .unknown
+        endpoint = nil
     }
 
     private func restartAfterDelay() {
@@ -125,37 +155,24 @@ final class PrintService {
     // MARK: - Discovery
 
     private func handle(results: Set<NWBrowser.Result>) {
-        // Pick the first result. Multiple servers on the same LAN is not a
-        // scenario we plan for; if it ever happens, prefer the one whose
-        // name matches a configured host (not implemented).
         guard let first = results.first else {
-            // Stay in .searching for a moment in case a result is about to
-            // arrive; if /health is still failing, the timer flips us to
-            // .offline next tick.
-            if case .online = state { state = .searching }
+            // Empty results — Bonjour no longer sees the service. Don't
+            // clear the stored endpoint though; if the server is still
+            // alive at the same address, the next health probe will
+            // succeed and flip serverState back to reachable.
+            if case .reachable = serverState {
+                serverState = .unreachable(reason: "Server no longer announced on the network")
+                printerState = .unknown
+            }
             return
         }
-        // Resolve the endpoint name to a host:port. NWBrowser's endpoint
-        // type is .service(name, type, domain, interface); we ask NWConnection
-        // to resolve it lazily by handing the .service endpoint to URLSession
-        // via a constructed `.local` URL — iOS resolves Bonjour on `.local`
-        // hostnames automatically when NSLocalNetworkUsageDescription is set.
-        //
-        // We extract the instance name (e.g. "Photoboot Print Server on
-        // emanuel-server-0") and the TXT-advertised port via NWBrowser metadata.
         if case let .service(name, _, _, _) = first.endpoint {
-            // Avahi publishes the host's mDNS name as ".local" — derive it
-            // from the instance name's "on <hostname>" suffix our service
-            // file uses. Fall back to the instance name verbatim.
             let host = derivedHostname(fromInstance: name)
-            // Port is fixed (8787) in our service definition; reading from
-            // TXT would require resolving the endpoint, which we skip for
-            // simplicity given a known port.
-            state = .online(host: host, port: 8787)
+            self.endpoint = (host: host, port: 8787)
+            serverState = .reachable(host: host, port: 8787)
             log.info("discovered server host=\(host, privacy: .public)")
-            // Probe health immediately so we don't wait up to 10s for the
-            // first scheduled tick — if the discovery is stale, this flips
-            // us back to .offline right away.
+            // Probe health right away so printerState reflects reality
+            // within milliseconds, not 10 seconds.
             Task { @MainActor in await tickHealth() }
         }
     }
@@ -179,48 +196,58 @@ final class PrintService {
     }
 
     private func tickHealth() async {
-        guard case .online(let host, let port) = state else { return }
-        var req = URLRequest(url: URL(string: "http://\(host):\(port)/health")!)
+        guard let endpoint else { return }
+        var req = URLRequest(url: URL(string: "http://\(endpoint.host):\(endpoint.port)/health")!)
         req.timeoutInterval = 4
-        // The server caches its own headers but URLSession's URLCache may
-        // hold an older response. Always go to the network for health.
+        // URLCache could otherwise lock in a stale response across restarts.
         req.cachePolicy = .reloadIgnoringLocalCacheData
         do {
             let (data, response) = try await urlSession.data(for: req)
             guard let http = response as? HTTPURLResponse else { return }
-            // 5xx means the print *service* itself is down (e.g. can't
-            // reach CUPS). Treat as offline with the server's reason.
+            let body = try? JSONDecoder().decode(HealthBody.self, from: data)
+            let summary = body?.summary.flatMap { $0.isEmpty ? nil : $0 }
+
+            // We got an HTTP response, so the server itself is up and
+            // reachable. The body says whether the printer is ready.
+            serverState = .reachable(host: endpoint.host, port: endpoint.port)
+            lastHealthAt = Date()
+
             if http.statusCode >= 500 {
-                let body = try? JSONDecoder().decode(HealthBody.self, from: data)
-                state = .offline(reason: body?.summary.flatMap { $0.isEmpty ? nil : $0 } ?? "Print service error \(http.statusCode)")
-                return
-            }
-            guard let body = try? JSONDecoder().decode(HealthBody.self, from: data) else {
-                state = .offline(reason: "Couldn't parse server response")
-                return
-            }
-            if body.ok {
-                lastHealthAt = Date()
-                state = .online(host: host, port: port)
+                // 5xx → service is up but degraded (CUPS unreachable etc.).
+                printerState = .notReady(reason: summary ?? "Print service error \(http.statusCode)")
+            } else if let body {
+                printerState = body.ok ? .ready : .notReady(reason: summary ?? "Printer not ready")
             } else {
-                // Printer not ready — surface the server's specific
-                // reason ("Out of paper", "Printer cover open", …).
-                state = .offline(reason: body.summary.flatMap { $0.isEmpty ? nil : $0 } ?? "Printer not ready")
+                printerState = .notReady(reason: "Couldn't parse server response")
             }
         } catch {
             log.warning("health probe failed: \(error.localizedDescription, privacy: .public)")
-            state = .offline(reason: error.localizedDescription)
-            restartAfterDelay()
+            // Network-level failure: the iPad can't talk to the server.
+            // Endpoint is preserved so next tick (10s) retries.
+            serverState = .unreachable(reason: error.localizedDescription)
+            printerState = .unknown
         }
     }
 
     // MARK: - Print
 
     func submit(image: UIImage, format: StripFormat, copies: Int = 1) async throws -> JobReceipt {
-        guard case .online(let host, let port) = state else { throw SubmitError.notOnline }
+        // Try whatever endpoint we last discovered, even if the most
+        // recent state is .unreachable — the network may have recovered
+        // since the last health probe. If we never discovered anything,
+        // there's nothing to attempt.
+        guard let endpoint else {
+            let reason: String
+            switch serverState {
+            case .searching:            reason = "Still discovering the print server."
+            case .unreachable(let r):   reason = r
+            case .reachable:            reason = "Unknown"
+            }
+            throw SubmitError.serverUnreachable(reason: reason)
+        }
         guard let jpeg = image.jpegData(compressionQuality: 0.92) else { throw SubmitError.encodeFailed }
 
-        let url = URL(string: "http://\(host):\(port)/print")!
+        let url = URL(string: "http://\(endpoint.host):\(endpoint.port)/print")!
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         let boundary = "Boundary-\(UUID().uuidString)"
@@ -234,15 +261,33 @@ final class PrintService {
         do {
             let (data, response) = try await urlSession.upload(for: req, from: req.httpBody!)
             guard let http = response as? HTTPURLResponse else { throw SubmitError.http(status: 0, body: "") }
+            // Successful contact with the server, whatever the status:
+            // refresh serverState in case we were stuck on .unreachable.
+            serverState = .reachable(host: endpoint.host, port: endpoint.port)
             if !(200..<300).contains(http.statusCode) {
-                // FastAPI's HTTPException returns {"detail": ...} where detail
-                // can be a string OR our structured object with a summary.
-                let body = extractFriendlyError(from: data) ?? (String(data: data, encoding: .utf8) ?? "")
-                throw SubmitError.http(status: http.statusCode, body: body)
+                // Server's pre-flight failed: friendly reason is in detail.summary
+                // (FastAPI HTTPException envelope). Surface it directly.
+                if let friendly = extractFriendlyError(from: data) {
+                    if http.statusCode == 503 {
+                        // 503 with a printer reason → reflect it in
+                        // printerState so Settings updates immediately,
+                        // not on the next 10s tick.
+                        printerState = .notReady(reason: friendly)
+                    }
+                    throw SubmitError.printerNotReady(reason: friendly)
+                }
+                throw SubmitError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
             }
             return try JSONDecoder().decode(JobReceipt.self, from: data)
         } catch let e as SubmitError {
             throw e
+        } catch let e as URLError {
+            // Network failure during submit — flip serverState so the
+            // user sees the same diagnosis in Settings as they got in
+            // the toast. Endpoint is preserved for retries.
+            serverState = .unreachable(reason: e.localizedDescription)
+            printerState = .unknown
+            throw SubmitError.transport(e)
         } catch {
             throw SubmitError.transport(error)
         }

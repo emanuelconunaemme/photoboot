@@ -12,7 +12,6 @@ struct StripDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var settings = SettingsStore.shared
-    @State private var printService = PrintService.shared
 
     @State private var image: UIImage?
     @State private var imageLoadError: String?
@@ -146,7 +145,10 @@ struct StripDetailView: View {
             actionButton(title: "AirDrop", icon: "square.and.arrow.up.fill", tint: Color.blue) {
                 prepareAirDrop()
             }
-            if printService.state.isOnline {
+            // Printing is gated only on the settings toggle. Server/printer
+            // reachability is reflected through toasts on submit so the
+            // button never silently disappears mid-event.
+            if settings.printingEnabled {
                 actionButton(title: "Print", icon: "printer.fill", tint: Brand.purple) {
                     Task { await performPrint() }
                 }

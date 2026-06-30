@@ -77,21 +77,25 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    LabeledContent("Status") {
-                        printStatusLabel
-                    }
-                    if case let .online(host, port) = printService.state {
-                        LabeledContent("Server") { Text("\(host):\(port)").font(.callout.monospaced()) }
-                    }
+                    Toggle("Enable printing", isOn: $settings.printingEnabled)
+                } header: {
+                    Text("Printing")
+                } footer: {
+                    Text("When off, the Print button is hidden on the strip detail screen. Leave it on for events with a printer; turn it off for events without one.")
+                }
+
+                Section {
+                    LabeledContent("Server") { serverStatusLabel }
+                    LabeledContent("Printer") { printerStatusLabel }
                     if let last = printService.lastHealthAt {
                         LabeledContent("Last health") {
                             Text(last, style: .relative).font(.callout.monospaced())
                         }
                     }
                 } header: {
-                    Text("Print server")
+                    Text("Print server status")
                 } footer: {
-                    Text("Discovered over Bonjour (_photoboot-print._tcp). The Print button hides automatically when the server isn't reachable.")
+                    Text("Discovered over Bonjour (_photoboot-print._tcp). 'Server' is whether the iPad can reach the print server; 'Printer' is whether the printer itself is ready to take a job.")
                 }
             }
             .navigationTitle("Settings")
@@ -105,18 +109,23 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private var printStatusLabel: some View {
-        switch printService.state {
+    private var serverStatusLabel: some View {
+        switch printService.serverState {
         case .searching:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
                 Text("Searching…").foregroundStyle(.secondary)
             }
-        case .online:
-            Label("Online", systemImage: "checkmark.circle.fill")
-                .labelStyle(.titleAndIcon)
-                .foregroundStyle(.green)
-        case .offline(let reason):
+        case .reachable(let host, let port):
+            VStack(alignment: .trailing, spacing: 2) {
+                Label("Online", systemImage: "checkmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(.green)
+                Text("\(host):\(port)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+            }
+        case .unreachable(let reason):
             VStack(alignment: .trailing, spacing: 2) {
                 Label("Offline", systemImage: "xmark.circle.fill")
                     .foregroundStyle(.red)
@@ -125,6 +134,22 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var printerStatusLabel: some View {
+        switch printService.printerState {
+        case .unknown:
+            Text("—").foregroundStyle(.secondary)
+        case .ready:
+            Label("Ready", systemImage: "checkmark.circle.fill")
+                .labelStyle(.titleAndIcon)
+                .foregroundStyle(.green)
+        case .notReady(let reason):
+            Label(reason, systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .multilineTextAlignment(.trailing)
         }
     }
 }

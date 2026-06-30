@@ -18,6 +18,7 @@ final class SettingsStore {
         static let showSmsConsent = "photoboot.settings.showSmsConsent"
         static let splashDelay = "photoboot.settings.splashDelay"
         static let returnToCamera = "photoboot.settings.returnToCamera"
+        static let printingEnabled = "photoboot.settings.printingEnabled"
     }
 
     var preferredFormat: StripFormat {
@@ -47,6 +48,15 @@ final class SettingsStore {
     /// Only applies after a fresh capture — gallery browsing is exempt.
     var returnToCameraSeconds: Int {
         didSet { defaults.set(returnToCameraSeconds, forKey: Key.returnToCamera) }
+    }
+
+    /// Global kill-switch for the Print button on the strip detail screen.
+    /// When false, the button is hidden — useful for events without a
+    /// printer attached. When true (the default) the button is always
+    /// shown, even if the server or printer is currently unreachable;
+    /// failures surface as toasts on submit.
+    var printingEnabled: Bool {
+        didSet { defaults.set(printingEnabled, forKey: Key.printingEnabled) }
     }
 
     private init() {
@@ -85,6 +95,12 @@ final class SettingsStore {
             self.returnToCameraSeconds = defaults.integer(forKey: Key.returnToCamera)
         } else {
             self.returnToCameraSeconds = 60
+        }
+
+        if defaults.object(forKey: Key.printingEnabled) != nil {
+            self.printingEnabled = defaults.bool(forKey: Key.printingEnabled)
+        } else {
+            self.printingEnabled = true
         }
     }
 }
