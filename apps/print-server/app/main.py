@@ -137,10 +137,9 @@ def _connect() -> cups.Connection:
     return cups.Connection()
 
 
-def _inspect_queue(printers: dict, queue: str) -> dict:
+def _inspect_queue(conn: cups.Connection, present: set[str], queue: str) -> dict:
     """Return a per-queue status dict, with a friendly summary string."""
-    info = printers.get(queue)
-    if not info:
+    if queue not in present:
         return {
             "queue": queue,
             "present": False,
@@ -149,10 +148,13 @@ def _inspect_queue(printers: dict, queue: str) -> dict:
             "summary": "Queue not configured",
             "reasons": [],
         }
+    # getPrinters() on some CUPS builds omits printer-is-accepting-jobs;
+    # getPrinterAttributes() returns the full attribute set per queue.
+    attrs = conn.getPrinterAttributes(queue)
     # printer-state: 3=idle, 4=processing, 5=stopped
-    state = info.get("printer-state", 0)
-    accepting = bool(info.get("printer-is-accepting-jobs", False))
-    raw_reasons = info.get("printer-state-reasons", []) or []
+    state = attrs.get("printer-state", 0)
+    accepting = bool(attrs.get("printer-is-accepting-jobs", False))
+    raw_reasons = attrs.get("printer-state-reasons", []) or []
     severity, summary = _summarize_reasons(raw_reasons)
     if state == 5:
         severity = "error"
@@ -190,7 +192,7 @@ def health() -> JSONResponse:
     """
     try:
         conn = _connect()
-        printers = conn.getPrinters()
+        present = set(conn.getPrinters().keys())
     except Exception as exc:
         log.warning("cups connect failed: %s", exc)
         return JSONResponse(
@@ -198,7 +200,7 @@ def health() -> JSONResponse:
             content={"ok": False, "summary": "Print service can't reach CUPS", "error": str(exc)},
         )
 
-    queue_state = {fmt: _inspect_queue(printers, name) for fmt, name in QUEUES.items()}
+    queue_state = {fmt: _inspect_queue(conn, present, name) for fmt, name in QUEUES.items()}
     all_ready = all(q["ready"] for q in queue_state.values())
     if all_ready:
         summary = "Ready"
@@ -231,7 +233,8 @@ async def submit_print(
     # Without this, a job posted while the printer is out of paper sits
     # silently stalled and the iPad would see a happy 200 with a job id.
     conn = _connect()
-    status = _inspect_queue(conn.getPrinters(), queue)
+    present = set(conn.getPrinters().keys())
+    status = _inspect_queue(conn, present, queue)
     if not status["ready"]:
         raise HTTPException(
             status_code=503,

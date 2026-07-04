@@ -100,9 +100,13 @@ create_queue() {
 log "4/6 creating CUPS queues"
 # 4x6 queue: full sheet, no cut.
 create_queue "photoboot-4x6" "w288h432"
-# 2x6 strip queue: 4x6 media cut into two 2x6 strips. StpNoCutWaste=True
-# closes the unprinted gap between strips so each strip is full-bleed.
-create_queue "photoboot-strip" "w288h432-div2" -o StpNoCutWaste=True
+# 2x6 strip queue: 4x6 media cut into two 2x6 strips. We deliberately
+# leave StpNoCutWaste at its default (False): the cutter physically
+# trims ~2mm around the cut, and the driver's blank gutter absorbs that
+# trim so each strip keeps its inner-edge padding. Setting True made
+# strips full-bleed but the cut then ate the design's inner padding —
+# left strip had no right padding, right strip had no left padding.
+create_queue "photoboot-strip" "w288h432-div2"
 
 # Dump key effective options for the strip queue — useful first-deploy
 # diagnostic. grep reads stdin fully so it can't SIGPIPE upstream, which
