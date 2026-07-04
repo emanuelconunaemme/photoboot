@@ -19,6 +19,7 @@ final class SettingsStore {
         static let splashDelay = "photoboot.settings.splashDelay"
         static let returnToCamera = "photoboot.settings.returnToCamera"
         static let printingEnabled = "photoboot.settings.printingEnabled"
+        static let maxPrintCopies = "photoboot.settings.maxPrintCopies"
     }
 
     var preferredFormat: StripFormat {
@@ -57,6 +58,13 @@ final class SettingsStore {
     /// failures surface as toasts on submit.
     var printingEnabled: Bool {
         didSet { defaults.set(printingEnabled, forKey: Key.printingEnabled) }
+    }
+
+    /// Upper bound on the copies picker shown when the operator taps Print
+    /// on a strip. 1 means the picker is skipped and the button prints one
+    /// copy directly. Matches the print server's own 1..10 clamp.
+    var maxPrintCopies: Int {
+        didSet { defaults.set(maxPrintCopies, forKey: Key.maxPrintCopies) }
     }
 
     private init() {
@@ -102,5 +110,8 @@ final class SettingsStore {
         } else {
             self.printingEnabled = true
         }
+
+        let maxStored = defaults.integer(forKey: Key.maxPrintCopies)
+        self.maxPrintCopies = (1...10).contains(maxStored) ? maxStored : 5
     }
 }

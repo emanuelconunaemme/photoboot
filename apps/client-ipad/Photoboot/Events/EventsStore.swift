@@ -44,6 +44,20 @@ final class EventsStore {
         }
     }
 
+    /// Force-fetches a single event by id, bypassing any in-memory list.
+    /// Used by Settings' refresh-event action when the operator wants the
+    /// latest row (e.g. after re-uploading templates on the admin side).
+    static func refetch(id: UUID) async throws -> Event? {
+        let events: [Event] = try await SupabaseService.shared.client
+            .from("events")
+            .select(Event.selectColumns)
+            .eq("id", value: id)
+            .limit(1)
+            .execute()
+            .value
+        return events.first
+    }
+
     /// Resolves the persisted "last selected" event by fetching it directly from
     /// Supabase. Returns nil if there's no stored id, the row no longer exists,
     /// or the request fails.

@@ -78,6 +78,34 @@ final class BackgroundCache {
         }
     }
 
+    /// Drop all in-memory + on-disk copies for this event's template
+    /// paths, then re-preload. Used by the Settings "Refresh event data"
+    /// button when the operator has re-uploaded templates and the row's
+    /// updated_at may not have moved.
+    func refresh(for event: Event) async {
+        for path in [event.backgroundPath2x6, event.backgroundPath4x6].compactMap({ $0 }) {
+            byPath.removeValue(forKey: path)
+            versionByPath.removeValue(forKey: path)
+            Self.dropDiskEntries(for: path)
+        }
+        await preload(for: event)
+    }
+
+    private static func dropDiskEntries(for path: String) {
+        guard let dir = cacheDirectory() else { return }
+        let safe = path
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "?", with: "_")
+        let prefix = "\(safe)@"
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        for file in files where file.lastPathComponent.hasPrefix(prefix) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
     /// Public templates URL with a `v=` cache-buster so any intermediate
     /// caches (URLSession, CDN) serve fresh content after an edit.
     static func publicURL(path: String, version: TimeInterval) -> URL? {

@@ -11,9 +11,11 @@ struct StripView2x6: View {
     private let canvasWidth: CGFloat = 600
     private let canvasHeight: CGFloat = 1800
     // 4:3 landscape — close enough to the 3:2 capture to crop only ~5% off
-    // each edge, keeps the photos prominent in the tall 2×6 strip.
-    private let photoWidth: CGFloat = 552
-    private let photoHeight: CGFloat = 414
+    // each edge, keeps the photos prominent in the tall 2×6 strip. Sized
+    // at ~95% of the earlier 552×414 to leave a bit more background around
+    // each photo (VStack Spacers keep them centered vertically).
+    private let photoWidth: CGFloat = 524
+    private let photoHeight: CGFloat = 393
 
     var body: some View {
         ZStack {
@@ -85,6 +87,9 @@ struct StripView4x6: View {
                     }
                 }
                 .frame(width: canvasWidth / 2)
+                // Nudge photos toward the center so the paper's left edge
+                // isn't hugging the images (75px was too tight visually).
+                .offset(x: 40)
 
                 // Right half intentionally empty so the background image's
                 // own title / artwork / branding shows through.

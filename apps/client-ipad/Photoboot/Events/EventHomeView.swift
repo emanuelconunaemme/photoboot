@@ -94,7 +94,7 @@ struct EventHomeView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView()
+            SettingsView(event: event, onEventRefreshed: onEventEdited)
         }
         .sheet(isPresented: $showEdit) {
             EventEditView(event: event, onSaved: onEventEdited)

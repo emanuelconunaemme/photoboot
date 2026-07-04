@@ -70,8 +70,8 @@ private struct StripThumbnail: View {
 
     private var aspectRatio: CGFloat {
         switch format {
-        case .twoBySix: 3.0 / 5.0   // tall portrait
-        case .fourBySix: 3.0 / 2.0  // landscape
+        case .twoBySix: 1.0 / 3.0   // 600×1800 composite
+        case .fourBySix: 3.0 / 2.0  // 1800×1200 composite
         }
     }
 

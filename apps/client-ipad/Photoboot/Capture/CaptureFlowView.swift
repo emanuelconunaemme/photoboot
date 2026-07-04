@@ -14,6 +14,7 @@ struct CaptureFlowView: View {
     @State private var errorMessage: String?
     @State private var showSplash = false
     @State private var splashTask: Task<Void, Never>?
+    @State private var remoteSubscriptionID: UUID?
 
     private let shotsTotal = 2
 
@@ -75,6 +76,7 @@ struct CaptureFlowView: View {
             do { try await camera.start() }
             catch { errorMessage = error.localizedDescription }
             scheduleSplash()
+            subscribeRemote()
         }
         // Belt-and-suspenders: also kick off background preload here so the
         // splash + compositor have their assets even when CaptureFlowView is
@@ -86,6 +88,7 @@ struct CaptureFlowView: View {
         .onDisappear {
             camera.stop()
             cancelSplash()
+            unsubscribeRemote()
         }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .idle {
@@ -335,5 +338,33 @@ struct CaptureFlowView: View {
     private func cancelSplash() {
         splashTask?.cancel()
         splashTask = nil
+    }
+
+    // MARK: - Bluetooth clicker
+
+    /// Subscribe to the paired remote's learned key so a button press
+    /// behaves exactly like tapping the on-screen capture button — same
+    /// countdown, same flow. Ignored unless we're in `.idle`, so the
+    /// clicker can't restart or interrupt a session already in flight.
+    private func subscribeRemote() {
+        guard remoteSubscriptionID == nil else { return }
+        let remote = CameraRemoteController.shared
+        remoteSubscriptionID = remote.addTrigger {
+            // The clicker is a "begin a session" button. If the user
+            // hits it while the splash is up, treat that as "let's go"
+            // and dismiss it before starting the countdown.
+            if showSplash {
+                withAnimation(.easeInOut(duration: 0.2)) { showSplash = false }
+            }
+            guard phase == .idle else { return }
+            startCountdownChain()
+        }
+    }
+
+    private func unsubscribeRemote() {
+        if let id = remoteSubscriptionID {
+            CameraRemoteController.shared.removeTrigger(id)
+            remoteSubscriptionID = nil
+        }
     }
 }

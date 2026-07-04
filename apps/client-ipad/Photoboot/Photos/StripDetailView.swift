@@ -17,6 +17,7 @@ struct StripDetailView: View {
     @State private var imageLoadError: String?
     @State private var deliverySheet: StripService.DeliveryChannel?
     @State private var showDeleteConfirm = false
+    @State private var showCopiesPicker = false
     @State private var statusMessage: String?
     @State private var isPerforming = false
     @State private var airDropPayload: AirDropPayload?
@@ -38,7 +39,7 @@ struct StripDetailView: View {
     /// idle timer pauses while this is true so the user isn't kicked out
     /// mid-compose.
     private var anySheetOpen: Bool {
-        deliverySheet != nil || airDropPayload != nil || showDeleteConfirm
+        deliverySheet != nil || airDropPayload != nil || showDeleteConfirm || showCopiesPicker
     }
 
     var body: some View {
@@ -93,6 +94,18 @@ struct StripDetailView: View {
             Button("Delete", role: .destructive) { Task { await performDelete() } }
         } message: {
             Text("It'll be removed from the gallery. This can't be undone.")
+        }
+        .confirmationDialog(
+            "How many prints?",
+            isPresented: $showCopiesPicker,
+            titleVisibility: .visible
+        ) {
+            ForEach(1...max(settings.maxPrintCopies, 1), id: \.self) { count in
+                Button(count == 1 ? "1 copy" : "\(count) copies") {
+                    Task { await performPrint(copies: count) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .overlay(alignment: .top) {
             if let statusMessage {
@@ -150,7 +163,13 @@ struct StripDetailView: View {
             // button never silently disappears mid-event.
             if settings.printingEnabled {
                 actionButton(title: "Print", icon: "printer.fill", tint: Brand.purple) {
-                    Task { await performPrint() }
+                    // Skip the picker when only one copy is allowed —
+                    // otherwise there's just a single option to tap.
+                    if settings.maxPrintCopies <= 1 {
+                        Task { await performPrint(copies: 1) }
+                    } else {
+                        showCopiesPicker = true
+                    }
                 }
             }
             actionButton(title: "Delete", icon: "trash.fill", tint: Color(.systemGray)) {
@@ -218,16 +237,17 @@ struct StripDetailView: View {
 
     // MARK: - Actions
 
-    private func performPrint() async {
+    private func performPrint(copies: Int) async {
         guard let image else { return }
         isPerforming = true
         defer { isPerforming = false }
         do {
-            let receipt = try await PrintService.shared.submit(
+            _ = try await PrintService.shared.submit(
                 image: image,
-                format: settings.preferredFormat
+                format: settings.preferredFormat,
+                copies: copies
             )
-            showStatus("Sent to printer ✨ (job \(receipt.job_id))")
+            showStatus("Sent to printer ✨")
             await StripService.shared.logLocalAction(strip: strip, action: .print)
         } catch {
             showStatus("Print failed: \(error.localizedDescription)")
