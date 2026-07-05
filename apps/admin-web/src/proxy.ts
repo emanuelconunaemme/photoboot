@@ -4,8 +4,9 @@ import { updateSession } from "@/lib/supabase/middleware";
 const AUTH_ROUTES = ["/login"];
 // Public routes — no auth required, no redirects either way:
 // - /p/[id]: permanent shareable strip URL handed out via SMS/email
+// - /e/[shareCode]: password-gated event gallery (magic-token bypass under /e/[code]/t/[token])
 // - /terms, /privacy: required by Twilio toll-free SMS verification
-const PUBLIC_PREFIXES = ["/p/", "/terms", "/privacy"];
+const PUBLIC_PREFIXES = ["/p/", "/e/", "/terms", "/privacy"];
 
 export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);

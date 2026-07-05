@@ -23,6 +23,9 @@ export interface EventRow {
   strip_subtitle: string | null;
   gphotos_album_id: string | null;
   gphotos_share_url: string | null;
+  share_code: string | null;
+  share_password_hash: string | null;
+  share_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

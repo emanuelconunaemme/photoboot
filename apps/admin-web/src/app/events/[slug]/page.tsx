@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
+import { ShareEventPanel, type ShareRecipient } from "@/components/ShareEventPanel";
 import { createClient } from "@/lib/supabase/server";
 import type { EventRow, PhotoRow, StripRow } from "@/lib/database";
 import { PhotoGrid, type PhotoWithUrl } from "./PhotoGrid";
@@ -21,11 +23,15 @@ export default async function EventPage({
 }) {
   const { slug } = await params;
   const supabase = await createClient();
+  const hdrs = await headers();
+  const proto = hdrs.get("x-forwarded-proto") ?? "http";
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
+  const publicOrigin = `${proto}://${host}`;
 
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, background_2x6_path, background_4x6_path, updated_at",
+      "id, name, slug, status, gphotos_share_url, description, event_date, primary_color, secondary_color, background_2x6_path, background_4x6_path, updated_at, share_code, share_enabled, share_password_hash",
     )
     .eq("slug", slug)
     .maybeSingle<
@@ -43,7 +49,11 @@ export default async function EventPage({
         | "background_2x6_path"
         | "background_4x6_path"
         | "updated_at"
-      >
+      > & {
+        share_code: string | null;
+        share_enabled: boolean;
+        share_password_hash: string | null;
+      }
     >();
 
   if (!event) notFound();
@@ -121,7 +131,7 @@ export default async function EventPage({
   // Stats: counts derive cheaply from existing tables. Deliveries don't
   // carry event_id directly — join through strips with the !inner hint.
   // Single fetch covers all channels; we tally in JS.
-  const [photoCount, stripCount, deliveryRows] = await Promise.all([
+  const [photoCount, stripCount, deliveryRows, shareRecipientRows] = await Promise.all([
     supabase
       .from("photos")
       .select("id", { count: "exact", head: true })
@@ -134,6 +144,12 @@ export default async function EventPage({
       .from("deliveries")
       .select("channel, status, strips!inner(event_id)")
       .eq("strips.event_id", event.id),
+    supabase
+      .from("event_share_recipients")
+      .select("id, channel, recipient, status, sent_at, error, created_at")
+      .eq("event_id", event.id)
+      .order("created_at", { ascending: false })
+      .returns<ShareRecipient[]>(),
   ]);
 
   const photosTaken = photoCount.count ?? 0;
@@ -247,6 +263,16 @@ export default async function EventPage({
             <DeliveryStat label="Email" stats={emailStats} />
           </div>
         </section>
+
+        <ShareEventPanel
+          eventId={event.id}
+          eventSlug={event.slug}
+          shareCode={event.share_code}
+          shareEnabled={event.share_enabled}
+          hasPassword={Boolean(event.share_password_hash)}
+          publicOrigin={publicOrigin}
+          recipients={shareRecipientRows.data ?? []}
+        />
 
         <section className="mt-10">
           <div className="flex items-baseline justify-between">

@@ -26,12 +26,28 @@ drop policy if exists "owner writes composites bucket" on storage.objects;
 drop policy if exists "anyone reads templates bucket" on storage.objects;
 drop policy if exists "owner writes templates bucket" on storage.objects;
 
--- Legacy policy names
-drop policy if exists "owner manages deliveries via photo" on public.deliveries;
+-- Legacy policy names — the deliveries table may not exist on a fresh
+-- `db reset`, so guard the drop.
+do $$
+begin
+  if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'deliveries') then
+    drop policy if exists "owner manages deliveries via photo" on public.deliveries;
+  end if;
+end $$;
 
--- Triggers + functions
-drop trigger if exists deliveries_send_on_insert on public.deliveries;
-drop trigger if exists strips_send_on_composite_ready on public.strips;
+-- Triggers + functions. `drop trigger if exists ... on <table>` still errors
+-- if the table itself is absent (fresh `db reset`), so guard those two.
+-- The drop-table cascade below would take care of them anyway; keeping the
+-- explicit drops for readability.
+do $$
+begin
+  if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'deliveries') then
+    drop trigger if exists deliveries_send_on_insert on public.deliveries;
+  end if;
+  if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'strips') then
+    drop trigger if exists strips_send_on_composite_ready on public.strips;
+  end if;
+end $$;
 drop function if exists public.on_delivery_insert();
 drop function if exists public.on_strip_composite_ready();
 drop function if exists public.send_delivery_now(uuid);
