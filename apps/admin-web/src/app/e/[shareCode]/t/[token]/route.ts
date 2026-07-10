@@ -21,7 +21,7 @@ export async function GET(
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
+  if (!url || !serviceKey || !process.env.SHARE_COOKIE_SECRET) {
     return new NextResponse("Server misconfigured", { status: 500 });
   }
 

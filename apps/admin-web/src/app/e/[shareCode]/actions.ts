@@ -25,6 +25,11 @@ export async function verifySharePassword(
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) return { error: "Server misconfigured" };
+  // Fail early with a legible message rather than a bare 500 from
+  // signShareCookie() throwing mid-action.
+  if (!process.env.SHARE_COOKIE_SECRET) {
+    return { error: "Server misconfigured — SHARE_COOKIE_SECRET is not set" };
+  }
 
   const supabase = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
