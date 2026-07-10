@@ -13,8 +13,18 @@ struct StripDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var settings = SettingsStore.shared
 
+    /// Format currently being previewed / delivered / printed. Seeded
+    /// from the Settings default at open time; the toolbar picker lets
+    /// the guest flip it per-strip without touching global settings.
+    @State private var activeFormat: StripFormat
+
     @State private var image: UIImage?
     @State private var imageLoadError: String?
+    /// Guards `initialImageData` so it's consumed only once. If the guest
+    /// flips the format picker, we need to fetch the other format from
+    /// storage rather than reusing the capture-time preview (which was
+    /// rendered for the settings-default format).
+    @State private var didConsumeInitialImage = false
     @State private var deliverySheet: StripService.DeliveryChannel?
     @State private var showDeleteConfirm = false
     @State private var showCopiesPicker = false
@@ -33,6 +43,7 @@ struct StripDetailView: View {
         self.initialImageData = initialImageData
         self.autoDismissOnInactivity = autoDismissOnInactivity
         self.onDelete = onDelete
+        self._activeFormat = State(initialValue: SettingsStore.shared.preferredFormat)
     }
 
     /// True whenever a sheet/alert is in front of the detail view. The
@@ -40,6 +51,33 @@ struct StripDetailView: View {
     /// mid-compose.
     private var anySheetOpen: Bool {
         deliverySheet != nil || airDropPayload != nil || showDeleteConfirm || showCopiesPicker
+    }
+
+    /// Options shown in the "How many prints?" dialog. 2x6 strips are
+    /// printed two-up on a 4x6 sheet and cut, so only even strip counts
+    /// are physically achievable — the label reads in strips, the
+    /// `copies` value is the sheet count sent to the print server.
+    /// 4x6 prints go one sheet per copy, so 1..max as usual.
+    private struct CopyOption: Identifiable {
+        let copies: Int
+        let label: String
+        var id: Int { copies }
+    }
+    private var copyOptions: [CopyOption] {
+        let maxCount = max(settings.maxPrintCopies, 1)
+        switch activeFormat {
+        case .twoBySix:
+            // Floor to nearest even; guarantee at least one option (2
+            // strips = 1 sheet) even if the operator set max to 1.
+            let cap = max(2, maxCount - (maxCount % 2 == 0 ? 0 : 1))
+            return stride(from: 2, through: cap, by: 2).map { strips in
+                CopyOption(copies: strips / 2, label: "\(strips) strips")
+            }
+        case .fourBySix:
+            return (1...maxCount).map { count in
+                CopyOption(copies: count, label: count == 1 ? "1 copy" : "\(count) copies")
+            }
+        }
     }
 
     var body: some View {
@@ -50,8 +88,13 @@ struct StripDetailView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Your strip")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                formatPicker
+            }
+        }
         .task { await loadImage() }
-        .onChange(of: settings.preferredFormat) { _, _ in
+        .onChange(of: activeFormat) { _, _ in
             image = nil
             imageLoadError = nil
             Task { await loadImage() }
@@ -68,11 +111,16 @@ struct StripDetailView: View {
         .onChange(of: anySheetOpen) { _, isOpen in
             if isOpen { cancelIdleTimer() } else { kickIdleTimer() }
         }
-        .sheet(item: $deliverySheet) { channel in
+        // Full-screen cover rather than .sheet: on iPad, .sheet presents
+        // in its own scene/window, so the software keyboard's placeholder
+        // view ends up in a different hierarchy than the composer's text
+        // field. Reopening the composer a second time throws an uncaught
+        // "no common ancestor" NSLayoutConstraint exception and terminates
+        // the app. .fullScreenCover keeps everything in the primary window.
+        .fullScreenCover(item: $deliverySheet) { channel in
             DeliveryComposer(strip: strip, channel: channel) { msg in
                 showStatus(msg)
             }
-            .presentationDetents([.medium, .large])
         }
         .sheet(item: $airDropPayload) { payload in
             AirDropSheet(fileURL: payload.url) { completed in
@@ -100,9 +148,9 @@ struct StripDetailView: View {
             isPresented: $showCopiesPicker,
             titleVisibility: .visible
         ) {
-            ForEach(1...max(settings.maxPrintCopies, 1), id: \.self) { count in
-                Button(count == 1 ? "1 copy" : "\(count) copies") {
-                    Task { await performPrint(copies: count) }
+            ForEach(copyOptions, id: \.copies) { option in
+                Button(option.label) {
+                    Task { await performPrint(copies: option.copies) }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -115,6 +163,28 @@ struct StripDetailView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: statusMessage)
+    }
+
+    /// Menu that lets the guest flip between 2×6 and 4×6 for this strip.
+    /// The Settings default only seeds this on open — the picker wins
+    /// afterward and doesn't write back to SettingsStore.
+    private var formatPicker: some View {
+        Menu {
+            Picker("Format", selection: $activeFormat) {
+                ForEach(StripFormat.allCases) { format in
+                    Text(format.displayName).tag(format)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(activeFormat.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .foregroundStyle(Brand.pink)
+        }
+        .accessibilityLabel("Change format")
     }
 
     private var photoArea: some View {
@@ -163,10 +233,11 @@ struct StripDetailView: View {
             // button never silently disappears mid-event.
             if settings.printingEnabled {
                 actionButton(title: "Print", icon: "printer.fill", tint: Brand.purple) {
-                    // Skip the picker when only one copy is allowed —
-                    // otherwise there's just a single option to tap.
-                    if settings.maxPrintCopies <= 1 {
-                        Task { await performPrint(copies: 1) }
+                    let options = copyOptions
+                    if options.count <= 1 {
+                        // Only one achievable output — no reason to
+                        // pop a picker with a single choice.
+                        Task { await performPrint(copies: options.first?.copies ?? 1) }
                     } else {
                         showCopiesPicker = true
                     }
@@ -216,18 +287,21 @@ struct StripDetailView: View {
     // MARK: - Loading
 
     private func loadImage() async {
-        // If we have an instant preview from the capture flow (and it
-        // matches the user's current preferred format), use it directly.
-        // Otherwise download from storage.
+        // Use the capture-flow's instant preview at most once. It matches
+        // the settings-default format that was active at capture time, so
+        // a later format flip must fall through to a storage download.
         if image != nil { return }
-        if let data = initialImageData, let ui = UIImage(data: data) {
+        if !didConsumeInitialImage,
+           let data = initialImageData,
+           let ui = UIImage(data: data) {
+            didConsumeInitialImage = true
             image = ui
             return
         }
         do {
             let data = try await StripService.shared.downloadImageData(
                 for: strip,
-                format: settings.preferredFormat
+                format: activeFormat
             )
             image = UIImage(data: data)
         } catch {
@@ -244,7 +318,7 @@ struct StripDetailView: View {
         do {
             _ = try await PrintService.shared.submit(
                 image: image,
-                format: settings.preferredFormat,
+                format: activeFormat,
                 copies: copies
             )
             showStatus("Sent to printer ✨")
@@ -257,7 +331,7 @@ struct StripDetailView: View {
     private func prepareAirDrop() {
         guard let image, let data = image.jpegData(compressionQuality: 0.92) else { return }
         let shortId = strip.id.uuidString.prefix(8).lowercased()
-        let filename = "photoboot-\(settings.preferredFormat.rawValue)-\(shortId).jpg"
+        let filename = "photoboot-\(activeFormat.rawValue)-\(shortId).jpg"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
         do {
             try data.write(to: url, options: .atomic)

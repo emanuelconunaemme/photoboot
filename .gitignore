@@ -60,3 +60,4 @@ supabase/.temp
 
 # Coverage
 coverage/
+.env*

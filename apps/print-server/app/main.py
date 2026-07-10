@@ -108,9 +108,11 @@ def _layout_for_strip_queue(data: bytes) -> bytes:
     strip queue MUST be a 4x6 sheet with the strip duplicated side-by-side.
     Callers upload one of two shapes; we detect by aspect ratio:
 
-      • ~1:3 portrait (e.g. 600x1800) — a single 2x6 strip. We paste it
-        twice side-by-side onto a fresh 4x6 portrait canvas, then re-encode
-        as JPEG.
+      • ~1:3 portrait (e.g. 600x1800) — a single 2x6 strip. Each copy is
+        shrunk ~2.5% and centered in its 2x6 half of the sheet so the
+        DNP -div2 cutter's trim (a couple of mm on each side of the cut)
+        lands in whitespace instead of eating into the design's inner
+        edge. Result: both output strips have symmetric margins.
       • ~2:3 portrait OR ~3:2 landscape — assume the caller already laid
         out a 4x6 sheet; pass through unchanged.
     """
@@ -121,13 +123,27 @@ def _layout_for_strip_queue(data: bytes) -> bytes:
     # Normalize aspect to portrait (always treat as h ≥ w for the check).
     aspect = w / h
     if 0.28 <= aspect <= 0.40:
-        # Single 2x6 strip → duplicate side-by-side onto a 4x6 portrait.
+        # Symmetric layout: crop the same `gutter` px off both sides of
+        # the design and place each cropped copy centered horizontally
+        # in its 2x6 half of the sheet. Result: every output strip has
+        # equal whitespace on its outer (paper) AND inner (cut) edges,
+        # with no top/bottom whitespace. Each strip looks identical to
+        # the other — no "one side has a white line, the other side is
+        # cut too close" asymmetry.
+        #
+        # The design's own 24px of background-only padding around the
+        # photos absorbs the crop; nothing that matters gets clipped.
+        gutter = 15  # ~1.25mm at 300 DPI on outer and inner edges
+        cropped = img.crop((gutter, 0, w - gutter, h))  # (w - 2*gutter) × h
         canvas = Image.new("RGB", (w * 2, h), (255, 255, 255))
-        canvas.paste(img, (0, 0))
-        canvas.paste(img, (w, 0))
+        canvas.paste(cropped, (gutter, 0))
+        canvas.paste(cropped, (w + gutter, 0))
         out = BytesIO()
         canvas.save(out, format="JPEG", quality=92, optimize=False)
-        log.info("laid out 2x6 strip %dx%d → 4x6 sheet %dx%d", w, h, w * 2, h)
+        log.info(
+            "laid out 2x6 strip %dx%d → 4x6 sheet %dx%d (gutter=%dpx per side)",
+            w, h, w * 2, h, gutter,
+        )
         return out.getvalue()
     # Already a 4x6 layout (either orientation) — pass through.
     return data

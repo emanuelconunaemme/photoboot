@@ -22,7 +22,7 @@ struct StripView2x6: View {
             background
             // Photos centered vertically — the background template carries
             // its own header above and footer below the photo pair.
-            VStack(spacing: 24) {
+            VStack(spacing: 48) {
                 Spacer(minLength: 0)
                 ForEach(photos.prefix(2).indices, id: \.self) { i in
                     Image(uiImage: photos[i])
@@ -68,15 +68,18 @@ struct StripView4x6: View {
     private let canvasHeight: CGFloat = 1200
 
     // 3:2 landscape cells — match the captures' 3:2 aspect exactly, no crop.
-    // Two stacked vertically in the left half.
-    private let photoWidth: CGFloat = 810
-    private let photoHeight: CGFloat = 540
+    // Two stacked vertically in the left half. Sized at ~95% of the
+    // earlier 810×540 so photos sit inside a bit more breathing room;
+    // VStack spacing bumped in parallel so the extra room shows both
+    // between the two frames and around the top/bottom edges.
+    private let photoWidth: CGFloat = 770
+    private let photoHeight: CGFloat = 513
 
     var body: some View {
         ZStack {
             background
             HStack(spacing: 0) {
-                VStack(spacing: 30) {
+                VStack(spacing: 45) {
                     ForEach(photos.prefix(2).indices, id: \.self) { i in
                         Image(uiImage: photos[i])
                             .resizable()

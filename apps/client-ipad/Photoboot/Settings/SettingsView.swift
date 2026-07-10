@@ -103,7 +103,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Printing")
                 } footer: {
-                    Text("When printing is off, the Print button is hidden on the strip detail screen. Max copies is the largest number the guest can pick when tapping Print (1 skips the picker and prints one copy directly).")
+                    Text("When printing is off, the Print button is hidden on the strip detail screen. Max copies caps the picker: for 4×6 it offers 1…max as usual; for 2×6 it offers even strip counts (2, 4, …) up to max, since one 4×6 sheet always cuts into two 2×6 strips.")
                 }
 
                 Section {
