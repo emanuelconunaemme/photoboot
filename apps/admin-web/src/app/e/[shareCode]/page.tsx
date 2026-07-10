@@ -68,12 +68,30 @@ export default async function ShareEventPage({
     return <PasswordForm shareCode={shareCode} eventName={event.name} />;
   }
 
-  const { data: strips } = await supabase
-    .from("strips")
-    .select("id, composite_2x6_path, composite_4x6_path, created_at")
-    .eq("event_id", event.id)
-    .order("created_at", { ascending: false })
-    .returns<StripRow[]>();
+  const [{ data: strips }, photoCount, stripCount, deliveryRows] = await Promise.all([
+    supabase
+      .from("strips")
+      .select("id, composite_2x6_path, composite_4x6_path, created_at")
+      .eq("event_id", event.id)
+      .order("created_at", { ascending: false })
+      .returns<StripRow[]>(),
+    supabase
+      .from("photos")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    supabase
+      .from("strips")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    // Only counts for sent deliveries — guests don't need to see
+    // pending/failed. Join through strips because deliveries don't
+    // carry event_id directly.
+    supabase
+      .from("deliveries")
+      .select("channel, strips!inner(event_id)")
+      .eq("strips.event_id", event.id)
+      .eq("status", "sent"),
+  ]);
 
   const readyStrips = (strips ?? []).filter(
     (s) => s.composite_2x6_path || s.composite_4x6_path,
@@ -91,6 +109,14 @@ export default async function ShareEventPage({
   const urlByPath = new Map(
     (signed.data ?? []).map((entry) => [entry.path ?? "", entry.signedUrl]),
   );
+
+  const photosTaken = photoCount.count ?? 0;
+  const stripsCreated = stripCount.count ?? 0;
+  const sentRows = deliveryRows.data ?? [];
+  const smsSent = sentRows.filter((r) => r.channel === "sms").length;
+  const emailSent = sentRows.filter((r) => r.channel === "email").length;
+  const printCount = sentRows.filter((r) => r.channel === "print").length;
+  const airdropCount = sentRows.filter((r) => r.channel === "airdrop").length;
 
   const eventDate = event.event_date
     ? new Date(event.event_date + "T00:00:00Z").toLocaleDateString(undefined, {
@@ -117,9 +143,17 @@ export default async function ShareEventPage({
         <p className="mt-1 text-sm text-zinc-500">{eventDate}</p>
       ) : null}
       <p className="mt-2 text-sm text-zinc-500">
-        {readyStrips.length}{" "}
-        {readyStrips.length === 1 ? "strip" : "strips"} — tap any to view and download.
+        Tap any strip to view and download.
       </p>
+
+      <section className="mt-8 grid w-full max-w-5xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <NumberStat label="Photos taken" value={photosTaken} />
+        <NumberStat label="Strips created" value={stripsCreated} />
+        <NumberStat label="Prints" value={printCount} />
+        <NumberStat label="AirDrops" value={airdropCount} />
+        <NumberStat label="SMS sent" value={smsSent} />
+        <NumberStat label="Email sent" value={emailSent} />
+      </section>
 
       {readyStrips.length === 0 ? (
         <p className="mt-16 text-sm text-zinc-500">
@@ -160,5 +194,18 @@ export default async function ShareEventPage({
 
       <p className="mt-16 text-xs text-zinc-400">Made with Photoboot</p>
     </main>
+  );
+}
+
+function NumberStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="ig-gradient-text mt-2 text-3xl font-bold tracking-tight">
+        {value}
+      </p>
+    </div>
   );
 }
