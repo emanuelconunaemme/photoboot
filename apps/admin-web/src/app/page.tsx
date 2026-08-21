@@ -14,9 +14,13 @@ export default async function Home() {
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")
-    .select("id, name, slug, status, created_at")
+    .select("id, name, slug, status, created_at, strips(count)")
     .order("created_at", { ascending: false })
-    .returns<Pick<EventRow, "id" | "name" | "slug" | "status" | "created_at">[]>();
+    .returns<
+      (Pick<EventRow, "id" | "name" | "slug" | "status" | "created_at"> & {
+        strips: { count: number }[];
+      })[]
+    >();
 
   const list = events ?? [];
 
@@ -57,6 +61,7 @@ export default async function Home() {
             {list.map((event) => {
               const statusClass =
                 STATUS_CLASSES[event.status] ?? STATUS_CLASSES.draft;
+              const stripCount = event.strips[0]?.count ?? 0;
               return (
                 <li key={event.id}>
                   <Link
@@ -89,6 +94,8 @@ export default async function Home() {
                             year: "numeric",
                           },
                         )}
+                        {" · "}
+                        {stripCount} {stripCount === 1 ? "strip" : "strips"}
                       </p>
                     </div>
                   </Link>
