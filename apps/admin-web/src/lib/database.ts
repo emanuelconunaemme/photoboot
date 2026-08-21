@@ -2,7 +2,7 @@
 
 import type { PhotobootTemplate } from "@photoboot/shared";
 
-export type EventStatus = "draft" | "live" | "archived";
+export type EventStatus = "draft" | "upcoming" | "live" | "done";
 
 export interface EventRow {
   id: string;

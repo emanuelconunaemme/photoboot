@@ -5,8 +5,9 @@ import type { EventRow } from "@/lib/database";
 
 const STATUS_CLASSES: Record<string, string> = {
   draft: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  upcoming: "bg-sky-100 text-sky-700 ring-sky-200",
   live: "ig-gradient text-white ring-transparent",
-  archived: "bg-zinc-200 text-zinc-500 ring-zinc-300",
+  done: "bg-zinc-200 text-zinc-500 ring-zinc-300",
 };
 
 export default async function Home() {

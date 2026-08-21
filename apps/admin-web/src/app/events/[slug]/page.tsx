@@ -7,14 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { EventRow, PhotoRow, StripRow } from "@/lib/database";
 import { PhotoGrid, type PhotoWithUrl } from "./PhotoGrid";
 import { StripGrid, type StripWithUrls } from "./StripGrid";
+import { StatusSelect } from "./StatusSelect";
 
 const SIGNED_URL_TTL_SECONDS = 3600;
-
-const STATUS_CLASSES: Record<string, string> = {
-  draft: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-  live: "ig-gradient text-white ring-transparent",
-  archived: "bg-zinc-200 text-zinc-500 ring-zinc-300",
-};
 
 export default async function EventPage({
   params,
@@ -171,7 +166,6 @@ export default async function EventPage({
     ? `${supabase.storage.from("templates").getPublicUrl(event.background_4x6_path).data.publicUrl}?v=${version}`
     : null;
 
-  const statusClass = STATUS_CLASSES[event.status] ?? STATUS_CLASSES.draft;
   const formattedDate = event.event_date
     ? new Date(event.event_date + "T00:00:00Z").toLocaleDateString(undefined, {
         weekday: "long",
@@ -201,11 +195,7 @@ export default async function EventPage({
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
               <span className="font-mono">{event.slug}</span>
               <span>·</span>
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${statusClass}`}
-              >
-                {event.status}
-              </span>
+              <StatusSelect eventId={event.id} status={event.status} />
               {formattedDate ? (
                 <>
                   <span>·</span>
